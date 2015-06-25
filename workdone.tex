@@ -19,7 +19,7 @@ While the tool is written in Rust, it also functions as a library and should all
 
 
 \subsection{}
-[Taken from http://scala-refactoring.org/wp-content/uploads/scala-refactoring.pdf, to transcribe]
+[Taken from http://scala-refactoring.org/wp-content/uploads/scala-refactoring.pdf to transcribe]
 \begin{enumerate}
 \item provide a user interface so that a specific refactoring can be discovered and
 invoked from the IDE.
@@ -56,10 +56,10 @@ In other languages, this normally occurs with local variables which appear in th
 Because of macros, and the incomplete information supplied by save-analysis, you want to raise conflicts as best as possible. In particular, macros changes for XXX-block conflicts cannot be detected with any usual means.
 
 \section{Specifics of the Implementation}
-\subsection{The changes to lib_resolve}
-In order to provide the necessary capabilities of 
+\subsection{The changes to libresolve}
+In order to provide the necessary capabilities of name resolution, a number of modifications had to be made to the libresolve package within the Rust compiler.
 \subsubsection{The lack of inheritance}
-\subsubsection{resolve_path termination}
+\subsubsection{resolvepath termination}
 
 \subsection{Unsuccessful attempts at refactorings?}
 \subsubsection{Lessons learnt}
