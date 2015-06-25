@@ -1,10 +1,6 @@
 \chapter{Work Done}\label{C:wd}
 
 \section{Design of Implementation}
-
-% Throwing exceptions... no null types
-% Error propogation system in terms of nesting, expectations on thread serialization
-
 % Redeclarations made under the same scope
 % Every approach seems incredibly intrusive.
 
@@ -12,8 +8,15 @@
 
 [Split into two chapters?]
 
+% Why was it in Rust vs other languages? 
+The choice of implementing the refactoring tool in Rust is for a number of reasons. Without a strong background in the language, performing even manual refactoring would likely be more difficult. The Rust compiler is a major component of the project and being able to modify the compiler and to understand the function of the compiler has been incredibly important. This is especially the case when documentation is not up to date and the level of support for some feature or API is unknown. It is also critical when there are bugs in the compiler that need to be fixed and extensions required to facilitate refactoring. The tool itself could also be used to test its own source code. Lastly, a number of API and interoperability problems would likely be a greater issue and so restricting compiler interactions with Rust code appears to be the best idea. 
+
+While the tool is written in Rust, it also functions as a library and should allow for interoperability with any possible tool, GUI or otherwise. The choice of creating a library vs. a standalone tool has had a number of arguments back and forth, but at the moment, the functionality remains provided by a library-type interface. There are reasons that this may not be ideal, for instance, 
+
+% Error propogation system in terms of nesting, expectations on thread serialization
+% Throwing exceptions... no null types
+
 Because of macros... you want to raise conflicts with new declaration.
-Why was it in Rust vs other languages? 
 
 \subsection{}
 [Taken from http://scala-refactoring.org/wp-content/uploads/scala-refactoring.pdf, to transcribe]
