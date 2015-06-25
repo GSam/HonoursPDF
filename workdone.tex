@@ -16,7 +16,7 @@ While the tool is written in Rust, it also functions as a library and should all
 % Error propogation system in terms of nesting, expectations on thread serialization
 % Throwing exceptions... no null types
 
-Because of macros... you want to raise conflicts with new declaration.
+
 
 \subsection{}
 [Taken from http://scala-refactoring.org/wp-content/uploads/scala-refactoring.pdf, to transcribe]
@@ -36,13 +36,28 @@ and apply it to the source code
 
 [Figure describe work flow of refactoring or structure of the library]
 
-caching to provide multiple refactorings in a single run and to only run the save-analysis where necessary again. 
+Caching to provide multiple refactorings in a single run and to only run the save-analysis where necessary again?
 
-\subsection{}
-\subsection{}
+\subsection{The different conflict types}
+Fundamentally, there are three different conflict types that occur with lexically scoped items. The naming convention here is taken from the comments of the gorename tool [src].
+
+\subsubsection{Super-block conflict}
+[Insert example here]
+
+\subsubection{Sub-block conflict}
+[Insert example here]
+
+\subsubsection{Same-block conflict}
+In other languages, this normally occurs with local variables which appear in the same scope. However, as described earlier, let bindings allow the redeclaration of variables under the same name in the same scope. This allows for mutability to be modified while retaining the original name and is generally considered good practice. While this conflict doesn't occur in Rust in the context of local variables, they still occur with global static variables, fields, and along with other constructs like methods and types.
+
+[Insert example here]
+
+\subsection{Limitations with macros}
+Because of macros, and the incomplete information supplied by save-analysis, you want to raise conflicts as best as possible. In particular, macros changes for XXX-block conflicts cannot be detected with any usual means.
 
 \section{Specifics of the Implementation}
 \subsection{The changes to lib_resolve}
+In order to provide the necessary capabilities of 
 \subsubsection{The lack of inheritance}
 \subsubsection{resolve_path termination}
 
