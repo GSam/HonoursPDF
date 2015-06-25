@@ -1,0 +1,42 @@
+\chapter{Evaluation}\label{C:eval}
+This chapter examines the correctness and practical use of the tool. The correctness of the code is measured predominantly with the testing currently supplied and without a large number of real world testers utilizing this code, it is hard to gauge the correctness of the code in general. Also, without general users of the tool, the analysis of practicality lacks depth, but again, the refactoring tool is designed to begin as a proof-of-concept.
+
+% HYGIENE DEFINITION?
+
+\section{Correctness of renamings}
+Included in the code repository of there is a number of tests to ensure that the refactoring tool functions as expected. Each test consists of a csv dump file, a Rust source file and if the refactoring is designed to be successful, an output Rust source file. The testing suite attempts to test both cases where a refactoring should occur, and cases where it should not due to the variations in conflict types as outlined in Section \ref{S:}. The tests use the inbuilt Rust functionality for providing testing and currently there are [19] different tests.
+
+\subsection{Local and global variables}
+[At the moment several tests for const, static and normal local variables, both in successful and non-successful situations. In terms of the ability for these to fail unexpectedly, the chances appear slight since variables lack the most dynanism and complexity (no dynamic dispatch for instance), particularly for local variables. While there are no aliases for variables, a variable can be redeclared in the same scope or in a child scope. But as long as name resolution works correctly and the compilation process, there is little reason to doubt these renamings. During the process of testing, it was found that `static mut' global variables did not record their spans correctly due to an error in the save-analysis code. In particular, the span was recorded for the `mut' identifier as opposed to the actual name of the variable. Fixing this required a minor patch to the Rust compiler and this patch was upstreamed prior to the release of Rust 1.0.]
+
+\subsection{Methods and functions}
+[At the moment there are several tests for renaming methods defined with a trait and/or overridden by a inheriting struct. Tests address both cases of static dispatch and dynamic dispatch, however the full combination of outputs for methods and functions is unknown due to the limitations in the csv file description and the reliance on the use of declname as opposed to a proper id for dynamically dispatched methods. One known failure mode of the refactoring tool is when a function (or trait) declared within a scope. Prevented renamings include those on dynamically dispatched methods, handled by the compiler runs on each usage.]
+
+\subsection{Concrete types - structs and enums}
+[At the moment there are tests for both renaming of structs and enums with detection of namespace collisions (which are not in local scopes as mentioned above). The checking of namespace collisions also extend to the usage of `use' statements which allow a specific namespace to be added to the default and no need to additionally qualify some names. The renaming of concrete types does not extend to type aliases (or rather the extent to which the renamings function is unknown).]
+
+\subsection{Shared limitations}
+All of the current refactorings rely on the fact that the save-analysis output is correct. During the process of this project, this has certainly been found to be false, although not to an extreme extent. Minor errors in processing have meant that little known edge cases have occurred and would not have been found without the testing that has currently been undergone. In terms of testing of the save-analysis functionality, it is relatively scarce and would be difficult to implement considering the different possible combinations of expressions and items. Beyond errors in the save-analysis translation, errors in the compiler would also affect the ability to function correctly, but the compiler in general appears to feature more testing and many of the aspects of the compiler save-analysis in particular depends on are quite critical. On the other hand, lesser used and documented API like name resolution could be affected and this is a problem especially from the context of a third party tool (and the first of its kind to use some API) [which means adoption of this code is all the more important by those who use Rust]. 
+
+\section{Examining the steps necessary to perform a refactoring}
+
+Looking at what is necessary to invoke the refactoring tool we can determine a general description of steps required:
+
+\begin{enumerate}
+\item Compile a program with -Z save-analysis to produce a csv analysis file.
+\item Either inspect the csv manually or run the refactoring library to determine the node id of the element you wish you alter.
+\item Run the refactoring tool, choosing your desired refactoring. With a rename, the new name must be supplied, the node id and (when multi-file refactorings are implemented) the file.
+\item Wait for the refactoring to occur and the compiler to run all the proper checks. 
+\item Process the result and save the result to disk, if desired.
+\end{enumerate}
+
+Ideally, the flow of behaviour a user would want would be to simply identify the row and column and the refactoring to happen automatically. Not involving node id at all would be good, but this is necessary to adequately treat the tool as a library as opposed to a full fledged tool. Being able to easily identify row and column still requires some form of GUI tool and integration with such a tool would be desirable to reduce the amount of different parts required to perform a refactoring. 
+
+Having to regnerate a csv file every time a refactoring has been made is definitely not desirable, although using the same csv file should have no consequences as long as only renamings were performed and renaming occurred on separate variables. By doing so, the compiler runs generate the same AST with the same node ids (is deterministic) and the only difference in the csv output is the naming. Implementing some form of analysis cache would reduce user friction and reduce the amount of time spent compiling. This could be done outside of the refactoring library, in a persisting background process but on the other hand, as soon as a refactoring which significantly changed the output began, any existing analysis would still be out of date. A possible solution would be to correctly implement incremental compilation within the Rust compiler, which would allow less significant compile times and faster regeneration of analysis. The lack of such behaviour is a shortcoming of the compiler and does appear to require significant structual changes but the benefits would extend further than just enabling better refactoring.
+
+\section{Analyzing time taken}
+With only single file tests, the amount of time spent performing each refactoring is quite negligible. Compilation times for single files, especially of fairly trivial programs do not provide sufficient evidence of practical timings for performing a refactoring. This is definitely something which should be attempted before the project is completed. 
+
+Typically, the main consumption of compile time is with the analysis phase and generation of LLVM code. Within the refactoring tool, in all cases, the generation of LLVM code is avoided since only source code modifications are being performed and the analysis phase provides more than enough information for validity of a refactoring. While a rename refactoring requires checking every usage of a declared item using the compiler, in the 'happy path' every usage should fail the compiler check during the early stages of parsing or name resolution. Only in more unlikely or unfortunate cases will a refactoring require any additional processing in analysis. In this regard, the compiler approach likely is not as bad as first theorized. On the other hand, the number of runs is still proportional to the number of usages but this is a direct consequence of the current limitations of the name resolution API.
+
+\section{Time taken for a refactoring within a moderate crate?}

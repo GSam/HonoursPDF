@@ -64,7 +64,25 @@
 
 \begin{abstract}
 
-A short description of the project goes here.
+This purpose of this document is to outline a new automated refactoring tool for the Rust programming language. The creation of the tool serves as an explorative process to investigate the current ability for Rust to provide automated refactorings and to draw comparisons to  efforts in providing refactoring tools for other languages. 
+
+Beginning with a review of refactoring in general and Rust, this document describes an overview of the tool along with a selection of the major design decisions. Elaborating further, technical details and Rust-specifics are explored with respect to the capability and limitations of the tool. [Evaluating the tool, the correctness of each refactoring is examined, as well as the practical use of the tool.]
+
+Regarding Rust specific aspects of refactoring, a number of further extensions to this tool are proposed, along with extensions to the Rust compiler which would help facilitate this work. In particular, [based on evaluation(?)], the issue of effiency of the tool should be further addressed and streamlining the process for convenient refactoring will contribute to the practical use of the tool.
+
+% A short description of the project goes here.
+% Rust nearing 1.0 release
+% Modern memory-safe systems programming language
+% But, tooling is still immature
+
+% The task is to create a Rust refactoring tool that people could actually use. In doing so, this will help identify which refactorings are easy, which are hard and how this compares to other languages.
+% Written in Rust
+% Start off as a standalone library, but a more comprehensive tool may require more feedback from the compiler.  Development will be incremental and new features will be chosen based on current progress and expected difficulty. Time permitting, a GUI tool? 
+% “Time” – Lots of concepts and code to understand
+% No prior experience with Rust
+% Unknown complexity, unknown support
+% BUGS + documentation
+% Up-streaming code – coding style, testing
 
 \end{abstract}
 
@@ -87,8 +105,11 @@ A short description of the project goes here.
 
 % individual chapters included here
 \include{introduction}
-\include{using}
-\include{example}
+%\include{using}
+\include{workdone}
+\include{evaluation}
+\include{futurework}
+%\include{example}
 \include{conclusion}
 
 
@@ -102,6 +123,7 @@ A short description of the project goes here.
 %\bibliographystyle{ieeetr}
 \bibliographystyle{acm}
 \bibliography{sample}
+%\bibliography{real}
 
 
 \end{document}

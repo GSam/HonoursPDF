@@ -1,0 +1,44 @@
+\chapter{Work Done}\label{C:wd}
+
+\section{Design of Implementation}
+
+% Throwing exceptions... no null types
+% Error propogation system in terms of nesting, expectations on thread serialization
+
+% Redeclarations made under the same scope
+% Every approach seems incredibly intrusive.
+
+% With API changing, one of the first to implement anything which interfaces in this particular manner.
+
+[Split into two chapters?]
+
+Because of macros... you want to raise conflicts with new declaration.
+Why was it in Rust vs other languages? 
+
+\subsection{}
+[Taken from http://scala-refactoring.org/wp-content/uploads/scala-refactoring.pdf, to transcribe]
+1. provide a user interface so that a specific refactoring can be discovered and
+invoked from the IDE.
+2. analyze the program under refactoring to find out whether the refactoring is
+applicable  and  further  to  determine  the  parameters  and  constraints  for  the
+refactoring.
+3. transform the program tree from its original form into a new – refactored – form
+according to the refactoring’s configuration.
+4. turn this new form back into source code,  keeping as much of the original
+formatting in place as possible and to generate code for new parts of the program.
+5. present the result of the refactoring to the user – typically in the form of a patch –
+and apply it to the source code
+
+[Figure describe work flow of refactoring or structure of the library]
+
+caching to provide multiple refactorings in a single run and to only run the save-analysis where necessary again. 
+
+Library 
+\subsection{}
+
+\subsection{}
+
+\section{Specifics of the Implementation}
+\subsection{}
+\subsection{Unsuccessful attempts at refactorings?}
+\subsubsection{Lessons learnt}
