@@ -9,16 +9,16 @@
 [Split into two chapters?]
 
 % Why was it in Rust vs other languages? 
-The choice of implementing the refactoring tool in Rust is for a number of reasons. Without a strong background in the language, performing even manual refactoring would likely be more difficult. The Rust compiler is a major component of the project and being able to modify the compiler and to understand the function of the compiler has been incredibly important. This is especially the case when documentation is not up to date and the level of support for some feature or API is unknown. It is also critical when there are bugs in the compiler that need to be fixed and extensions required to facilitate refactoring. The tool itself could also be used to test its own source code. Lastly, a number of API and interoperability problems would likely be a greater issue and so restricting compiler interactions with Rust code appears to be the best idea. 
+\subsection{Choice of language}
+The choice of implementing the refactoring tool in Rust is for a number of reasons. Without a strong background in the language, performing even manual refactoring would likely be more difficult. The Rust compiler is a major component of the project and being able to modify the compiler and to understand the function of the compiler has been incredibly important. This is especially the case when documentation is not up to date and the level of support for some feature or API is unknown. It is also critical when there are bugs in the compiler that need to be fixed and extensions required to facilitate refactoring. The tool itself could also be used to test its own source code. Lastly, a number of API and interoperability problems would likely be a greater issue and so limiting compiler interactions to Rust code appears to be the best idea. 
 
-While the tool is written in Rust, it also functions as a library and should allow for interoperability with any possible tool, GUI or otherwise. The choice of creating a library vs. a standalone tool has had a number of arguments back and forth, but at the moment, the functionality remains provided by a library-type interface. There are reasons that this may not be ideal, for instance, 
+\subsection{Standalone binary vs library}
+While the tool is written in Rust, it also functions as a library and should allow for interoperability with any possible tool, GUI or otherwise. The choice of creating a library vs. a standalone tool or binary has created a number of arguments back and forth, but at the moment, the functionality remains provided by a library-type interface. There are reasons that this may not be ideal, for instance, the compiler driver API in Rust for calling the compiler functions primarily on disk. Doing so introduces a number of dependencies for the library and force specific configurations for setting up the library, ones which would be made simpler with a single tool and no requirement for genericity. Additionally, in order to preserve state over a number of compile runs or to provide better caching, the library may be better off abandoing statelessness and run as a general background program with a well defined API instead of a regular library. On the other hand, providing a library allows linking against arbitrary programs and expectations of a library ensure that the aim of providing interfaces to refactor code is fulfilled.
 
 % Error propogation system in terms of nesting, expectations on thread serialization
 % Throwing exceptions... no null types
 
-
-
-\subsection{}
+\subsection{The general approach to refactoring}
 [Taken from http://scala-refactoring.org/wp-content/uploads/scala-refactoring.pdf to transcribe]
 \begin{enumerate}
 \item provide a user interface so that a specific refactoring can be discovered and
@@ -36,15 +36,19 @@ and apply it to the source code
 
 [Figure describe work flow of refactoring or structure of the library]
 
-Caching to provide multiple refactorings in a single run and to only run the save-analysis where necessary again?
+%Caching to provide multiple refactorings in a single run and to only run the save-analysis where necessary again?
 
 \subsection{The different conflict types}
 Fundamentally, there are three different conflict types that occur with lexically scoped items. The naming convention here is taken from the comments of the gorename tool [src].
 
 \subsubsection{Super-block conflict}
+Super-block conflicts occur when a new name coincides with one declared in an outer enclosing block. In this situation, any references to the name in the outer block could be shadowed by the new name.
+
 [Insert example here]
 
 \subsubsection{Sub-block conflict}
+Sub-block conflicts occur when a new name coincides with one declared in an inner sub-block. In this situation, any references to the name in the outer block when changed to the new name might be shadowed by the existing declaration in the sub-block.
+
 [Insert example here]
 
 \subsubsection{Same-block conflict}
@@ -52,14 +56,41 @@ In other languages, this normally occurs with local variables which appear in th
 
 [Insert example here]
 
-\subsection{Limitations with macros}
-Because of macros, and the incomplete information supplied by save-analysis, you want to raise conflicts as best as possible. In particular, macros changes for XXX-block conflicts cannot be detected with any usual means.
+\subsection{Identification of affected nodes}
+In order to map a variable, function or type to the corresponding AST node the save-analysis output must be provided. With the csv output, a user need only to present a file line and column to determine the node id of the referenced element. Within the library, the csv is read every time this operation is required and will always perform a full scan of the file lines. While this could be avoided, there is still the fundamental issue of providing the save-analysis output as input to the tool and until this is addressed in terms of maintaining this output to be current, a full scan will always be necessary regardless. A binary search mechanism for code spans (or regions) could be particularly efficient for searching for a node, however this would need long running updating of a code map and furthermore it is unlikely that this operation would incur any significant penalties compared to those encountered with the validity checking of refactoring to be examined.
+
+\subsection{Simple command line}
+With the library, a simple command line tool has been provided to give a user interface for a refactoring to be identified and invoked. The command line tool takes any new names required for a refactoring and takes the original name and code location (typically a declaration) which may be denoted with row and column numbers in the form <name>:<row>:<col>. Row and column may be replaced with -1 to indicate any refactoring valid for a matching name (where the expectation is that only one such name will be found). The tool also takes the operation that should be undergone and with that, executes the refactoring, outputing the result to standard output.
+
+\subsection{Name resolution for renaming}
+Given a node id, a new name with the enclosing file and the crate root file, a rename refactoring can begin. Loading in the csv analysis, there are two separate sets of information that need to be identified: the declaration and the references. Once they are ascertained, we run the compiler API to invoke the compiler. Using name resolution within the compiler, we can attempt to resolve the new name at the declaration site in the AST to ensure that it does not cause any conflicts. By doing so, this would avoid same-block conflicts and prevent all super-block conflicts (however, it does so by also preventing a number of valid renamings where there is no eventual usage of the shadowed item). However, this does not address the issue of sub-block conflicts. In order to do so would require name resolution to resolve the new name at each of the reference sites in the AST to ensure that it does not resolve. 
+
+Unfortunately, limitations imposed by the structure of name resolution and the internal representation mean that this is not possible. In order to provide functionality for detecting the missing sub-block conflicts, recompilation of the entire crate with a single use renamed is necessary. Of course this provides significant overhead, however, hopefully name resolution can provide the required functionality in the future. Apart from compilation, there does not appear to be any straightforward way to checking if a name already exists in the context for a usage. The name resolution approach is one adopted by gorename [ref] and is much more efficient in general due to the fact that only one compiler run should be necessary to check every modification point. Furthermore, employing the full compilation approach for declarations would provide more complexities in providing a valid construction of an expression to test the presence of an existing name. A generic approach could not be used and so constructions of different forms for variables and the variations of types and functions would be necessary, and these might not be compatible with simple ad-hoc replacement at the source code level.
+
+\subsection{Compilation run}
+Adopting the compilation approach, each reference is renamed to the new name one at a time and compiled to ensure that it fails. If a compilation succeeds, then a super-block or sub-block conflict would have occurred in this location and the refactoring must be halted. Care must be taken to ensure that the compilation fails due to a name resolution problem and not one which is due to other failures. If all the compilations fail correctly, the refactoring proceeds and performs all renamings of the occurrences of a variable/function/type.
 
 \section{Specifics of the Implementation}
+
 \subsection{The changes to libresolve}
-In order to provide the necessary capabilities of name resolution, a number of modifications had to be made to the libresolve package within the Rust compiler.
+In order to provide the necessary capabilities of name resolution, a number of modifications had to be made to the libresolve package within the Rust compiler. Name resolution occurs by walking the AST and resolving as it goes. As it proceeds through the AST, it maintains a list of ribs which correspond to lexical scopes and the various declarations made within them. By doing this, names defined within scopes can be checked, however unfortunately this means that libresolve and the associated resolve\_path call required for resolving a new name in the form of a path is not stateless. The module is built with resolution of an entire crate in mind and so every time a path resolution is required, the entire AST must be walked to find a single node. Compared to compilation, the cost should still not be significant, but there is still the challenge of stopping the walker (as part of the Visitor pattern) in the middle of a traversal. 
+
 \subsubsection{The lack of inheritance}
-\subsubsection{resolvepath termination}
+Had Rust implemented simple, single inheritance, creation of a walker to terminate at a given node would be quite trivial. An obvious alternative would be to single copy-paste the name resolution walker and modify the functionality as per necessary. Unfortunately, even if the changes were accepted upstream, this demanded heavy modification to a number of interfaces and duplication of further code which relied on the name resolution walker as the only possible type of name resolution walker. Basically it was never built for a generic implementation. Inheritance is a proposed addition to Rust, however, little progress has been made, and there are a number of outstanding issues as to how it would fit in with the existing type system.
+
+The second attempted approach was to attempt delegation to simulate the use of inheritance. Wrapping the API of existing walker with a new walker is quite simple, however, reverting control back to the new walker is not so trivial as calls will normally just continue with the internal walker and not with the wrapped one. In some situations, refactoring of the code to force the walk\_X functions to occur at the end of each visit function will allow very little overall duplication of code, however if multiple walk\_X calls are made within a single function there is no simple solution without modification to the old walker. Even performing this modification causes difficulty due to Rust and the mandatory requirement of ownership. In order to simulate inheritance, one approach would be to have the existing walker hold a field which contained a reference to either itself (for the default behaviour) or the new walker (for the new behaviour). Unfortunately, an object with a reference to itself under normal circumstances is quite difficult and prevented by the compiler due to move semantics. The concept of one (modifying) reference to any object is broken severely with any cyclical or circular referencing. There are ways around this, otherwise Rust would suffer in flexibility, but most of them require planning ahead like the use of reference counting. The RC<X> type is a reference counted pointer and solves any problems with creating circular graphs, however to use them for name resolution likely required conversion of the entire library.
+
+Accepting that reference counting would entail much more work, the last approach was to hand a callback to the resolver to invoke at every AST node. It functions generally for what is required but in terms of modifying without changes to original implementation, inheritance appears to be the ideal approach (for the Visitor pattern).
+
+\subsubsection{resolve\_path termination + the issue of panics}
+Now with a callback, and identification of the correct node location, the question is: What to do now? Deeply nested in the AST tree, the callback cannot simply halt the walker and leave it in the correct state to query the local ribs for lexical scoping. It is possible to simply panic and the stack unwind can be caught, however, the unwind mechanism is not built for general message passing (and nesting these captures is not recommended). In particular information that allows passing through the panic should be serializable and the implementation of the resolver is not compliant with that, requiring a number of changes. 
+
+The resolution itself could be executed in the callback, however, the resolver now owns the callback and therefore makes it impossible to pass the resolver through as an argument of the callback due to the ownership system preventing two simultaneous mutable borrows. Therefore, this is not feasible under the current structure.
+
+The remaining solution is to simply flag the resolver as complete and detecting this flag, perform no additional processing. The no additional processing is absolutely crucial due to the presence of the local ribs which are normally popped off as the scopes are exited. This appeared to be the only remaining practical solution to the issue of stopping the walker.
+
+\subsection{Limitations with macros}
+Because of macros, and the incomplete information supplied by save-analysis, conflicts should be raised as a precautionary measure whenever possible. In particular, macros changes for either sub-block or super-block conflicts cannot be detected with any usual means.
 
 \subsection{Unsuccessful attempts at refactorings?}
 \subsubsection{Lessons learnt}
