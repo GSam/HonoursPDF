@@ -70,26 +70,26 @@ Unfortunately, limitations imposed by the structure of name resolution and the i
 \subsection{Compilation run}
 Adopting the compilation approach, each reference is renamed to the new name one at a time and compiled to ensure that it fails. If a compilation succeeds, then a super-block or sub-block conflict would have occurred in this location and the refactoring must be halted. Care must be taken to ensure that the compilation fails due to a name resolution problem and not one which is due to other failures. If all the compilations fail correctly, the refactoring proceeds and performs all renamings of the occurrences of a variable/function/type.
 
-\section{Specifics of the Implementation}
+\chapter{Specifics of the Implementation}\label{C:impl}
 
-\subsection{The changes to libresolve}
+\section{The changes to libresolve}
 In order to provide the necessary capabilities of name resolution, a number of modifications had to be made to the libresolve package within the Rust compiler. Name resolution occurs by walking the AST and resolving as it goes. As it proceeds through the AST, it maintains a list of ribs which correspond to lexical scopes and the various declarations made within them. By doing this, names defined within scopes can be checked, however unfortunately this means that libresolve and the associated resolve\_path call required for resolving a new name in the form of a path is not stateless. The module is built with resolution of an entire crate in mind and so every time a path resolution is required, the entire AST must be walked to find a single node. Compared to compilation, the cost should still not be significant, but there is still the challenge of stopping the walker (as part of the Visitor pattern) in the middle of a traversal. 
 
-\subsubsection{The lack of inheritance}
+\subsection{The lack of inheritance}
 Had Rust implemented simple, single inheritance, creation of a walker to terminate at a given node would be quite trivial. An obvious alternative would be to single copy-paste the name resolution walker and modify the functionality as per necessary. Unfortunately, even if the changes were accepted upstream, this demanded heavy modification to a number of interfaces and duplication of further code which relied on the name resolution walker as the only possible type of name resolution walker. Basically it was never built for a generic implementation. Inheritance is a proposed addition to Rust, however, little progress has been made, and there are a number of outstanding issues as to how it would fit in with the existing type system.
 
 The second attempted approach was to attempt delegation to simulate the use of inheritance. Wrapping the API of existing walker with a new walker is quite simple, however, reverting control back to the new walker is not so trivial as calls will normally just continue with the internal walker and not with the wrapped one. In some situations, refactoring of the code to force the walk\_X functions to occur at the end of each visit function will allow very little overall duplication of code, however if multiple walk\_X calls are made within a single function there is no simple solution without modification to the old walker. Even performing this modification causes difficulty due to Rust and the mandatory requirement of ownership. In order to simulate inheritance, one approach would be to have the existing walker hold a field which contained a reference to either itself (for the default behaviour) or the new walker (for the new behaviour). Unfortunately, an object with a reference to itself under normal circumstances is quite difficult and prevented by the compiler due to move semantics. The concept of one (modifying) reference to any object is broken severely with any cyclical or circular referencing. There are ways around this, otherwise Rust would suffer in flexibility, but most of them require planning ahead like the use of reference counting. The RC<X> type is a reference counted pointer and solves any problems with creating circular graphs, however to use them for name resolution likely required conversion of the entire library.
 
 Accepting that reference counting would entail much more work, the last approach was to hand a callback to the resolver to invoke at every AST node. It functions generally for what is required but in terms of modifying without changes to original implementation, inheritance appears to be the ideal approach (for the Visitor pattern).
 
-\subsubsection{resolve\_path termination + the issue of panics}
+\subsection{resolve\_path termination + the issue of panics}
 Now with a callback, and identification of the correct node location, the question is: What to do now? Deeply nested in the AST tree, the callback cannot simply halt the walker and leave it in the correct state to query the local ribs for lexical scoping. It is possible to simply panic and the stack unwind can be caught, however, the unwind mechanism is not built for general message passing (and nesting these captures is not recommended). In particular information that allows passing through the panic should be serializable and the implementation of the resolver is not compliant with that, requiring a number of changes. 
 
 The resolution itself could be executed in the callback, however, the resolver now owns the callback and therefore makes it impossible to pass the resolver through as an argument of the callback due to the ownership system preventing two simultaneous mutable borrows. Therefore, this is not feasible under the current structure.
 
 The remaining solution is to simply flag the resolver as complete and detecting this flag, perform no additional processing. The no additional processing is absolutely crucial due to the presence of the local ribs which are normally popped off as the scopes are exited. This appeared to be the only remaining practical solution to the issue of stopping the walker.
 
-\subsection{Limitations with macros}
+\section{Limitations with macros}
 Because of macros, and the incomplete information supplied by save-analysis, conflicts should be raised as a precautionary measure whenever possible. In particular, macros changes for either sub-block or super-block conflicts cannot be detected with any usual means.
 
 \subsection{Unsuccessful attempts at refactorings?}
