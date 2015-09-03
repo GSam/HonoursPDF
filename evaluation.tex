@@ -1,6 +1,32 @@
 \chapter{Evaluation}\label{C:eval}
 This chapter examines the correctness and practical use of the tool. The correctness of the code is measured predominantly with the testing currently supplied and without a large number of real world testers utilizing this code, it is hard to gauge the correctness of the code in general. Also, without general users of the tool, the analysis of practicality lacks depth, but again, the refactoring tool is designed to begin as a proof-of-concept.
 
+[The types of considerations which could have been done are as follows:
+
+Design considerations - well, workflow problems
+Performance - how well does it perform as different aspects change:
+
+1. Size of codebase
+
+2. Number of refactoring locations - particularly for renaming + inlining
+
+3. Type of renaming
+
+4. 
+
+Comparing to Eclipse or IntelliJ perhaps... but the language differences make it quite difficult, time complexity and what checking they actually perform isn't entirely clear. The functionality provided by my tool is also Rust specific in some cases. Inline vs in Java - mutability constraints.
+
+Offsets to negative performance:
+The appearance of modular systems, Rust encouraging use of Crates.io and package management. Object-orientation as opposed to other paradigms? On the other hand, more modular systems mean more API and shared functions, types etc. This doesn't necessarily make a refactoring easier because once an API is exposed, it is usually not liable to change (cite Josh Bloch perhaps). Cross code-base changes are problematic, not just for Rust, but for programmers in general.
+
+User study - Why this is inappropriate? Could bring in users of Rust, but the language is not that popular still with only (XXX users). This wasn't a good idea, because finding the adequate amount of experience and users [target demographic]. There would also be nothing to compare to, besides perhaps manual refactoring... Availability + bias of people who know the language and its workings well.
+
+Correctness - Formal, informal. Integration testing vs unit-testing. The compiler is tightly coupled with the refactoring tool and compare this to the modular refactoring definitions definable by aspects [obliviousness and ... something, refer to paper] or the Scala refactoring tool... The compiler is still quite unstable, although it has finally reached release status... Even amongst the six months or so working on this tool, so many API have changed under my feet. While unit testing would provide more assurance that the code written is correct, a major part of the underlying code is actually in the compiler and the refactoring tool has to trust that the code is already correct. Massive complexities, that just can't be nailed down. To continue to write unit tests in the compiler was an option, but one that clearly provided less benefit than testing the actual cases properly.
+
+Describing the nature of the testing - What they actually do.. what failures there are still - to be listed in the appenix perhaps?
+
+[Need to look more back at Scala thesis etc...]
+
 % HYGIENE DEFINITION?
 \section{Correctness of renamings}
 Included in the code repository there is a number of tests to ensure that the refactoring tool functions as expected. Each test consists of a csv dump file, a Rust source file and if the refactoring is designed to be successful, an output Rust source file. The testing suite attempts to test both the cases where a refactoring should occur, and cases where it should not due to the variations in conflict types as outlined in Section \ref{S:different}. The tests use the inbuilt Rust functionality for providing testing and currently there around 20 different tests which should be doubled or tripled before the end of the project. Given the project time constraints, test cases appear to be the most effective way to ensure correctness. After reviewing the literature and noting the limited attempts at correctness, whether or not informal justifcations of correctness are satisfactory remains a big question.
@@ -22,9 +48,13 @@ All of the current refactorings rely on the fact that the save-analysis output i
 With the save-analysis, there is also the limitation of the missing macros in the output. As a pending issue in the Rust compiler, the necessary plumbing required for macros could be implemented given enough resources and should eventually function together with save-analysis. Unfortunately, until then, any definitions of correctness must exclude the use of macros. 
 
 \section{Extent of refactorings}
-Given only refactorings concerning renaming have been tackled, the scope of the investigation is still severely limited. In terms of the categories of refactorings mentioned by Fowler et al., only the very surface of method composition and simplifcation have been covered. On the other hand, renaming forms one of the primary atomic units within a refactoring and allows composition.
+Given only refactorings concerning renaming have been tackled, the scope of the investigation is still severely limited. 
 
-Referring back to Section \ref{S:refactorback}, at least one of code movement or extraction, data organization or operations within the trait hierarchy (compared with the classic inheritance hierarchy) should be investigated in order to provide a more comprehensive look at refactoring within the context of Rust. A majority of the issues seen so far have had more to do with the limitations of the compiler itself and how it was implemented than those purely of the language. If possible, a refactoring which interacts with the ownership system should provide an more interesting glimpse at the difficulties associated with Rust specifically.
+The refactorings tackled predominantly concern renaming, however, the addition of local variable inlining and lifetime elision and reification has allowed for a greater view of refactorings in Rust. In terms of the categories of refactorings mentioned by Fowler et al., only the very surface of method composition and simplifcation have been covered, but this projects underlying nature has meant notable differences and distinctness?. 
+
+[On the other hand, we have renaming which forms one of the primary atomic units within a refactoring and allows composition.]
+
+% Rework this section -- Referring back to Section \ref{S:refactorback}, at least one of code movement or extraction, data organization or operations within the trait hierarchy (compared with the classic inheritance hierarchy) should be investigated in order to provide a more comprehensive look at refactoring within the context of Rust. A majority of the issues seen so far have had more to do with the limitations of the compiler itself and how it was implemented than those purely of the language. If possible, a refactoring which interacts with the ownership system should provide an more interesting glimpse at the difficulties associated with Rust specifically.
 
 \section{Examining the steps necessary to perform a refactoring}
 
