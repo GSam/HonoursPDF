@@ -28,13 +28,20 @@ The main purpose of this work is to produce a proof-of-concept refactoring tool 
 %Although listed here, further details can be found on these refactorings in Chapters \ref{C:wd}, \ref{C:impl} and \ref{C:eval}.
 
 \begin{itemize}
-\item {\bfseries Renaming local variables} -- Variables declared within a function or method
-\item {\bfseries Renaming global variables} -- Variables in a global namespace
+\item {\bfseries Renaming local and global variables} -- Variables declared within a function or method, or in a global namespace
+%\item {\bfseries Renaming global variables} -- Variables in a global namespace
+\item {\bfseries Renaming function arguments} -- Renaming local variables declared by a function or method signature
+\item {\bfseries Renaming fields} -- Struct-local members
 \item {\bfseries Renaming functions} -- Statically and dynamically dispatched functions
 \item {\bfseries Renaming methods} -- Functions belonging to objects, including overriden or dynamically dispatched methods
 \item {\bfseries Renaming structs} -- Custom data types declaring fields and methods
 \item {\bfseries Renaming enumerations} -- Enumerated data types declaring fields and methods
+\item {\bfseries Inlining local variables} -- Replacing usages of a local variable with its initializing expression
+\item {\bfseries Reification of lifetime parameters} -- Reintroducing inferred lifetimes for function and method signatures
+\item {\bfseries Elision of lifetime parameters} -- Removing lifetimes in function and method signatures that may be inferred 
 \end{itemize}
+
+[WHAT MAKES IT HARD?] Namespaces, local and anonymous blocks, macros... 
 
 \section{Document outline}\label{S:outline}
 In Chapter \ref{C:back}, we explore the prior related work and background knowledge required in understanding the work presented in this document. In Chapter \ref{C:wd}, we explain the overall Rust refactoring tool and the major design decisions, while in Chapter \ref{C:impl}, we discuss specifics for the implementation with a more indepth focus on Rust behaviour. In Chapter \ref{C:eval}, we discuss opportunities for evaluation of the tool and the current extent of testing for refactorings provided by the tool and overall correctness. In Chapter \ref{C:future}, we propose a number of further extensions to the tool, to the Rust compiler and in general, outline areas of future work while providing useful insights gained during the course of this work. Lastly, Chapter \ref{C:con} presents a summary, and gives conclusions about this work.
