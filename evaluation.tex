@@ -2,7 +2,6 @@
 This chapter examines the correctness and practical use of the tool. The correctness of the code is measured predominantly with the testing currently supplied and without a large number of real world testers utilizing this code, it is hard to gauge the correctness of the code in general. Also, without general users of the tool, the analysis of practicality lacks depth, but again, the refactoring tool is designed to begin as a proof-of-concept.
 
 % HYGIENE DEFINITION?
-
 \section{Correctness of renamings}
 Included in the code repository there is a number of tests to ensure that the refactoring tool functions as expected. Each test consists of a csv dump file, a Rust source file and if the refactoring is designed to be successful, an output Rust source file. The testing suite attempts to test both the cases where a refactoring should occur, and cases where it should not due to the variations in conflict types as outlined in Section \ref{S:different}. The tests use the inbuilt Rust functionality for providing testing and currently there around 20 different tests which should be doubled or tripled before the end of the project. Given the project time constraints, test cases appear to be the most effective way to ensure correctness. After reviewing the literature and noting the limited attempts at correctness, whether or not informal justifcations of correctness are satisfactory remains a big question.
 
