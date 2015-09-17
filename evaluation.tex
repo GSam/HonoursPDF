@@ -1,5 +1,5 @@
 \chapter{Evaluation}\label{C:eval}
-This chapter examines the correctness and practical use of the tool. The correctness of the code is measured predominantly with the testing currently supplied and without a large number of real world testers utilizing this code, it is hard to gauge the correctness of the code in general. Also, without general users of the tool, the analysis of practicality lacks depth, but again, the refactoring tool is designed to begin as a proof-of-concept.
+This chapter examines the correctness and practical use of the tool. The correctness of the code is measured predominantly with the testing currently supplied and without a large number of real world testers utilizing this code, it is hard to gauge the correctness of the code in general. Also, without general users of the tool, the analysis of practicality lacks depth, but again, the refactoring tool has been designed as a proof-of-concept to begin with.
 
 [The types of considerations which could have been done are as follows:
 
@@ -13,9 +13,6 @@ Performance - how well does it perform as different aspects change:
 3. Type of renaming
 
 Comparing to Eclipse or IntelliJ perhaps... but the language differences make it quite difficult, time complexity and what checking they actually perform isn't entirely clear. The functionality provided by my tool is also Rust specific in some cases. Inline vs in Java - mutability constraints.
-
-Offsets to negative performance:
-The appearance of modular systems, Rust encouraging use of Crates.io and package management. Object-orientation as opposed to other paradigms? On the other hand, more modular systems mean more API and shared functions, types etc. This doesn't necessarily make a refactoring easier because once an API is exposed, it is usually not liable to change (cite Josh Bloch perhaps). Cross code-base changes are problematic, not just for Rust, but for programmers in general.
 
 User study - Why this is inappropriate? Could bring in users of Rust, but the language is not that popular still with only (XXX users). This wasn't a good idea, because finding the adequate amount of experience and users [target demographic]. There would also be nothing to compare to, besides perhaps manual refactoring... Availability + bias of people who know the language and its workings well.
 
@@ -72,7 +69,7 @@ Having to regnerate a csv file every time a refactoring has been made is definit
 
 % This could be done outside of the refactoring library, in a persisting background process but on the other hand,
 
-\section{Analyzing time taken}
+\section{Analyzing time taken or performance evaluation}
 With only single file tests, the amount of time spent performing each refactoring is quite negligible. Compilation times for single files, especially of fairly trivial programs do not provide sufficient evidence of practical timings for performing a refactoring. This is definitely something which should be attempted before the project is completed.
 
 Typically, the main consumption of compile time is with the analysis phase and generation of LLVM code. Within the refactoring tool, in all cases, the generation of LLVM code is avoided since only source code modifications are being performed and the analysis phase provides more than enough information for validity of a refactoring. While a rename refactoring requires checking every usage of a declared item using the compiler, in the `happy path' every usage should fail the compiler check during the early stages of parsing or name resolution. Only in more unlikely or unfortunate cases will a refactoring require any additional processing in analysis. In this regard, the compiler approach likely is not as bad as first theorized. On the other hand, the number of runs is still proportional to the number of usages but this is a direct consequence of the current limitations of the name resolution API.
@@ -82,3 +79,7 @@ This should be a reasonable test for some metric of the effectiveness of the too
 
 Things to compare against, the amount of usages for renamings, comparing the different renamings for speed differences, the time taken to reach analysis vs overall compilation times. 
 I have some examples, but I think Nick should know best what crates might be decent to test with.
+
+Offsets to negative performance:
+The appearance of modular systems, Rust encouraging use of Crates.io and package management. Object-orientation as opposed to other paradigms? On the other hand, more modular systems mean more API and shared functions, types etc. This doesn't necessarily make a refactoring easier because once an API is exposed, it is usually not liable to change (cite Josh Bloch perhaps). Cross code-base changes are problematic, not just for Rust, but for programmers in general.
+
