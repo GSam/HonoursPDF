@@ -12,8 +12,6 @@ Performance - how well does it perform as different aspects change:
 
 3. Type of renaming
 
-4. 
-
 Comparing to Eclipse or IntelliJ perhaps... but the language differences make it quite difficult, time complexity and what checking they actually perform isn't entirely clear. The functionality provided by my tool is also Rust specific in some cases. Inline vs in Java - mutability constraints.
 
 Offsets to negative performance:
@@ -42,8 +40,8 @@ At the moment there are several tests for renaming methods defined with a trait 
 \subsection{Concrete types - structs and enums}
 At the moment there are tests for both renaming of structs and enums with detection of namespace collisions (which are not in local scopes). The checking of namespace collisions also extend to the usage of `use' statements which allow a specific namespace to be added to the default and no need to additionally qualify some names. The renaming of concrete types does not extend to type aliases, or rather the extent to which the renamings function is still relatively unknown.
 
-\subsection{Shared limitations}
-All of the current refactorings rely on the fact that the save-analysis output is correct. During the process of this project, this has certainly been found to be false, although not to an extreme extent. Minor errors in processing have meant that little known edge cases have occurred and would not have been found without the testing that has currently been undergone. In terms of testing of the save-analysis functionality, it is relatively scarce and would be difficult to implement considering the different possible combinations of expressions and items. Beyond errors in the save-analysis translation, errors in the compiler would also affect the ability to function correctly, but the compiler in general appears to feature more testing and the dependencies required by save-analysis are quite critical. On the other hand, lesser used and documented API like name resolution could be affected and this is a problem especially from the context of a third party tool and the first of its kind to use various APIs. This makes adoption of this code is all the more important by those who use Rust.
+\subsection{Shared refactoring limitations}
+All of the current refactorings rely on the fact that the save-analysis output is correct. During the process of this project, this has certainly been found to be false, although not to an extreme extent. Minor errors in processing have meant that little known edge cases have occurred and would not have been found without the testing that has currently been undergone. In terms of testing of the save-analysis functionality, it is relatively scarce and would be difficult to implement considering the different possible combinations of expressions and items. Beyond errors in the save-analysis translation, errors in the compiler would also affect the ability to function correctly, but the compiler in general appears to feature more testing and the dependencies required by save-analysis are quite critical. On the other hand, lesser used and documented API like name resolution could be affected and this is a problem especially from the context of a third party tool and the first of its kind to use various APIs. This makes adoption of this code important by those who use Rust, and want to see a tool flourish.
 
 With the save-analysis, there is also the limitation of the missing macros in the output. As a pending issue in the Rust compiler, the necessary plumbing required for macros could be implemented given enough resources and should eventually function together with save-analysis. Unfortunately, until then, any definitions of correctness must exclude the use of macros. 
 
@@ -80,4 +78,7 @@ With only single file tests, the amount of time spent performing each refactorin
 Typically, the main consumption of compile time is with the analysis phase and generation of LLVM code. Within the refactoring tool, in all cases, the generation of LLVM code is avoided since only source code modifications are being performed and the analysis phase provides more than enough information for validity of a refactoring. While a rename refactoring requires checking every usage of a declared item using the compiler, in the `happy path' every usage should fail the compiler check during the early stages of parsing or name resolution. Only in more unlikely or unfortunate cases will a refactoring require any additional processing in analysis. In this regard, the compiler approach likely is not as bad as first theorized. On the other hand, the number of runs is still proportional to the number of usages but this is a direct consequence of the current limitations of the name resolution API.
 
 \subsection{Time taken for a refactoring within a moderate-sized crate}
-This should be a reasonable test for some metric of the effectiveness of the tool and should be tackled in the next few weeks.
+This should be a reasonable test for some metric of the effectiveness of the tool...
+
+Things to compare against, the amount of usages for renamings, comparing the different renamings for speed differences, the time taken to reach analysis vs overall compilation times. 
+I have some examples, but I think Nick should know best what crates might be decent to test with.
