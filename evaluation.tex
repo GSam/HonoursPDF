@@ -1,9 +1,10 @@
 \chapter{Evaluation}\label{C:eval}
 This chapter examines the correctness and practical use of the tool. The correctness of the code is measured predominantly with the testing currently supplied and without a large number of real world testers utilizing this code, it is hard to gauge the correctness of the code in general. Also, without general users of the tool, the analysis of practicality lacks depth, but again, the refactoring tool has been designed as a proof-of-concept to begin with.
 
-[The types of considerations which could have been done are as follows:
+The types of considerations which could have been done are as follows:
 
 Design considerations - well, workflow problems
+
 Performance - how well does it perform as different aspects change:
 
 1. Size of codebase
@@ -12,11 +13,11 @@ Performance - how well does it perform as different aspects change:
 
 3. Type of renaming
 
-Comparing to Eclipse or IntelliJ perhaps... but the language differences make it quite difficult, time complexity and what checking they actually perform isn't entirely clear. The functionality provided by my tool is also Rust specific in some cases. Inline vs in Java - mutability constraints.
+Comparing to Eclipse or IntelliJ perhaps... but the language differences make it quite difficult, time complexity and what checking they actually perform isn't entirely clear. Eclipse could be done by looking at their respective codebase, but fundamentally Java is quite a different language to Rust and targeting the Java VM vs. low level code. The functionality provided by my tool is also Rust specific in some cases. Inline vs in Java - mutability constraints.
 
-User study - Why this is inappropriate? Could bring in users of Rust, but the language is not that popular still with only (XXX users). This wasn't a good idea, because finding the adequate amount of experience and users [target demographic]. There would also be nothing to compare to, besides perhaps manual refactoring... Availability + bias of people who know the language and its workings well.
+User study - Why this is inappropriate? Could bring in users of Rust, but the language is not that popular still with only (XXX users). This wasn't a good idea, because finding the adequate amount of experience and users [target demographic]. There would also be nothing to compare to, besides perhaps manual refactoring... Availability + bias of people who know the language and its workings well. A majority of them time was still put into determining what could even be done and trying to juggle an user evaluation would detract from the goal of exploring the actual problems with a specifically Rust, refactoring tool. 
 
-Correctness testing - Formal, informal. Integration testing vs unit-testing. The compiler is tightly coupled with the refactoring tool and compare this to the modular refactoring definitions definable by aspects [obliviousness and ... something, refer to paper] or the Scala refactoring tool... The compiler is still quite unstable, although it has finally reached release status... Even amongst the six months or so working on this tool, so many API have changed under my feet. While unit testing would provide more assurance that the code written is correct, a major part of the underlying code is actually in the compiler and the refactoring tool has to trust that the code is already correct. Massive complexities, that just can't be nailed down. To continue to write unit tests in the compiler was an option, but one that clearly provided less benefit than testing the actual cases properly.
+Correctness testing - Formal, informal. Formal foundations for refactoring in general are incredibly weak as raise by the JRRT paper. Even the most trivial of refactoring rarely have huge amounts of detail and are based solely on implementation. Aiming to create any reasonable formalism appears to be an arduous task, and not one met with many rewards, particularly if the goal here has been for a Rust refactoring tool. Where possible, informal arguments have been given as to how different refactorings work, but to address any shortcomings, the a major focus has been on implementing test cases for each of the individual refactorings. In particular, both positive and negative cases have been considered, along with as many edge cases as could be possibly thought of. Integration testing vs unit-testing. The compiler is tightly coupled with the refactoring tool and compare this to the modular refactoring definitions definable by aspects [obliviousness and ... something, refer to paper] or the Scala refactoring tool... The compiler is still quite unstable, although it has finally reached release status... Even amongst the six months or so working on this tool, so many API have changed under my feet. While unit testing would provide more assurance that the code written is correct, a major part of the underlying code is actually in the compiler and the refactoring tool has to trust that the code is already correct. Massive complexities, that just can't be nailed down. To continue to write unit tests in the compiler was an option, but one that clearly provided less benefit than testing the actual cases properly.
 
 
 Describing the nature of the testing - What they actually do.. what failures there are still - to be listed in the appendix perhaps?
@@ -43,12 +44,16 @@ All of the current refactorings rely on the fact that the save-analysis output i
 
 With the save-analysis, there is also the limitation of the missing macros in the output. As a pending issue in the Rust compiler, the necessary plumbing required for macros could be implemented given enough resources and should eventually function together with save-analysis. Unfortunately, until then, any definitions of correctness must exclude the use of macros. 
 
-\section{Correctness of inline-local}
-definitely still a proof of concept, uses pretty printer to modify code... expands macros by accident (better approach may be to write a reverse source matching method). comments... although not location preserving...
+Here we can quote Bill Opdyke's preservation constraints and adapt them for Rust (traits etc.). Distinct member names is quite an obvious one. Distinct class names. Compatible signature (for type renaming mostly). Type safe assignment (this shouldn't be any problem). Semantically equivalent is hard though in any case... 
 
 \section{Correctness of inline-local}
-pretty printer... with elide. trouble with using the pretty printer, but the function impl should not have any major issues (elimination of comments).
+definitely still a proof of concept, uses pretty printer to modify code... expands macros by accident (better approach may be to write a reverse source matching method). comments... although not location preserving... In terms of changing the underlying memory, this is still not implemented. 
 
+\section{Correctness of elide-reify}
+pretty printer... with elide. trouble with using the pretty printer, but the function impl should not have any major issues (elimination of comments). calling full blown printer is not convenient at all...
+Almost completely confident with reify because of a number of different factors, RFC is straightforward compared with code, no specific edge cases, and a number of unit tests which cover parts of the RFC. In particular, many atttempts at reification which do fail, fail with the premise that the function was invalid in the first place which is impossible since the csv required needs the program to have compiled in the first place.
+
+Elide is likely correct within the given constraints given. In most cases, it would outright fail if there is anything too complex. This has advantages and disadvantages of course. Because it only handles a subset, it is more likely to be correct. Compared with reify, elide has much more edge cases or cases that might be considered (it's the inverse of the four rules, which leaves a lot more exceptions).
 
 \section{Extent of refactorings}
 %Given only refactorings concerning renaming have been tackled, the scope of the investigation is still severely limited. 
@@ -74,6 +79,10 @@ Looking at what is necessary to invoke the refactoring tool we can determine a g
 Ideally, the flow of behaviour a user would want would be to simply identify the row and column and the refactoring to happen automatically. Not involving node id at all would be good, but this is necessary to adequately treat the tool as a library as opposed to a full fledged tool. Being able to easily identify row and column still requires some form of GUI tool and integration with such a tool would be desirable to reduce the amount of different parts required to perform a refactoring. 
 
 Having to regnerate a csv file every time a refactoring has been made is definitely not desirable, although using the same csv file could only ever allow renamings to new names of the same length and renaming would have to occur on separate variables. Even though the compiler would probably generate the same AST with the same node ids (being deterministic) having different lengths in a new name would cause all the indexes into the code maps to be at the wrong offsets. Implementing some form of analysis cache could reduce user friction and reduce the amount of time spent compiling, but unless it managed all the changes in offsets correctly, as soon as a refactoring which significantly changed the output began, any existing analysis would still be out of date. Likely the best solution would be to correctly implement incremental compilation within the Rust compiler, which would allow less significant compile times and faster regeneration of analysis -- functioning basically like a cache. The lack of such behaviour is a shortcoming of the compiler and does appear to require significant structual changes but the benefits would extend further than just enabling better refactoring.
+
+Looking at the list given in the previous section on ideal steps for a refactoring tool, we can see that the tool we have built... 
+
+At the moment, it has much less testing for multi-file. 
 
 % This could be done outside of the refactoring library, in a persisting background process but on the other hand,
 
