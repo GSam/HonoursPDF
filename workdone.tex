@@ -1,4 +1,4 @@
-\chapter{Design of the Implementation}\label{C:wd}
+\chapter{Refactoring Rust}\label{C:wd}
 
 \section{Overall approach}
 % Redeclarations made under the same scope
@@ -129,7 +129,7 @@ Curiously enough, the elision rules as specified in the RFC [source?] specify ex
 
 %One way of performing renaming is to use access construction. This assumes that we have a procedure to `construct an access', which when given a position and declaration, will bind to that declaration at that position. To rename, you first compute the declarations for every usage. You rename the declaration and then go through every name and construct an access which will bind to the declaration it bound to originally, replacing the original name. Using the process of constructing accesses, new names may have additional qualification, but will still yield a program with the same binding structure. Elide doesn't handle anything non-trivial, lifetime bounds, usage of a lifetime variable twice...
 
-\chapter{Specifics of the Implementation}\label{C:impl}
+\chapter{Implementation}\label{C:impl}
 
 In this chapter, details of the design are elaborated with greater detail on the technical specifics and Rust specific context. A number of the hurdles and difficulties in implementation arise from shortcomings in the compiler, but also due to specific design decisions in the compiler which led to exposure of Rust specific oddities. In Section \ref{S:building}, the facilities for providing verification of renames are explored. In Section \ref{S:changes}, an overview of the changes required, predominantly in the compiler, are described. In Section \ref{S:limit}, a brief overview of some known limitations.
 
