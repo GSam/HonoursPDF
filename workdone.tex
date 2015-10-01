@@ -78,7 +78,24 @@ All of this information can be found in the save-analysis data, however, it is c
 \section{Building inline-local}\label{S:buildIL}
 Of the available literature, it appears that the authors of the JRRT describe the act of inlining a variable in the most specific detail. At the time, they also note the existing scarcity of indepth documentation for specific refactorings[?]. Working with Java in particular, they note that due to the limitations of Java, it is impossible to absolutely ensure 100\% correctness under even common circumstances. In this section, a description as best as possible within the context of Rust will be shown and how despite promising additional guarantees such as mutability, absolute correctness is still quite out of reach.
 
-For this analysis, in order to reduce the problem space (as well as accurately quantifying it), a number of assumptions have been made. First of all, only inlining of standard local variables will be discussed and not variable-like items such as function parameters. There is also the assumption that any code marked as unsafe (which does not follow the usual Rust ownership rules) should not interfere with the refactoring. Furthermore that there only exists completely sensible destructors and operator overloads (in other words, impliict behaviour not necessarily defined at the same location) e.g. ones that do not somehow modify a global variable. Pure functions used to be able to be checked in Rust but due to diffculty in definition, they were dropped. Compare this to Haskell folding. This cannot be solved in Rust, like Java. In Figure \ref{Fig:funcinline}, we can see how the inlining of a database call which might insert a single record will suddenly be repeated if it is inlined. Constructors - singletons...
+\subsection{Initial assumptions}
+For this analysis, in order to reduce the problem space (as well as applying an accurate quantification), a number of assumptions have been made. First of all, only inlining of standard local variables will be discussed and not variable-like items such as function parameters. There is also the assumption that any code marked as unsafe (which does not follow the usual Rust ownership rules) should not interfere with the refactoring. Furthermore we assume that there only exists sensible destructors and operator overloads (or in other words, implicit behaviour in other locations) e.g. no actions that somehow modify a global variable which may affect our inline. We also assume that there is at least one usage of the variable and the manual equivalent inline actually holds meaning.
+
+\subsection{Optimistic description}
+There are a number of factors to be considered when inlining a variable. The first is the purity of any function calls in the composing expression. The second is the mutability of the local variable to inline. The third is the number of usages of the local variable. The last is whether or not any identifiers used to initialize the variable now refers to something else.
+
+\begin{enumerate} 
+\item Check the initializing expression for the variable. If there are any non-pure function calls, abort the operation.
+\item If the initializing expression has any references to mutable memory, abort the operation.
+\item If the variable is only used once and never used as a right-hand side, skip to step 6.
+\item If the variable is declared `mut' and the `mut' declaration was required, abort the operation.
+\item If the variable has interior mutability, abort the operation.
+\item Visit each usage of the local variable, checking that any identifiers used in the initializing expression refer to the same variables. If not, abort the operation.
+\item Remove the declaration of the local variable.
+\end{enumerate}
+
+\subsection{Explanations and issues}
+This description is optimistic in that an invalid refactoring should fail, but it also means that some valid refactorings may also fail. Our first point of interest is the requirement for pure function calls which have no side effects. Although it appears to be a reasonable requirement, the function actually need only be conditionally pure for the code section of interest for the inline. This appears to be a very difficult analysis, when even regular purity cannot be predicted in Rust. Much like the case in Java for JRRT [?], the issue of identification of these functions cannot be solved in Rust. Pure functions were part of the language definition earlier on in the development of Rust but due to difficulty in producing an exact definition, they were abandoned [?]. In Figure \ref{Fig:funcinline}, we can see how the inlining of a database call which might insert a single record will suddenly be repeated if it is inlined. Now an interesting question is the presence of constructors or factory methods. In some cases, where there is only a single usage the inline could be valid, but the code in the constructor might violate purity. When there are multiple usages, being immutable and overriding the correct equality operators may suffice for inlining over most situations, but requiring strict singletons might be necessary for others. In any case, constructors appear to be an additional level of difficulty much beyond the current level of analysis.
 
 \begin{fig}[H]
 \begin{verbatim}
@@ -90,12 +107,22 @@ For this analysis, in order to reduce the problem space (as well as accurately q
 \label{Fig:funcinline}
 \end{fig}
 
-\subsection{Description}
-If there is exactly one usage of a local variable in an inline, then due to uniqueness constraints in Rust, there really is just a single usage without any aliases. This is unlike C++ for instance, where some other pointer could still refer to the same section of memory.
+For Step 3, if there is exactly one usage of a local variable in an inline, then due to uniqueness constraints in Rust, there really is just a single usage without any aliases. This is unlike C++ for instance, where some other pointer could still refer to the same section of memory. The check for the right-hand side is to ensure that the variable was not being assigned some value. In general, mutating the value of a local variable that is about to be inlined is invalid since the inline converts a long-lived state into transient ones [example?]. This reasoning applies exactly the same for steps 4 and 5, noting that interior mutability should be considered unsafe. The interior mutability might not be used and so, this is somewhat optimistic.
+
+
+
+The third is the mutability of the memory referred to by the variable.
+
 
 Regardless of mutability this should work. If any variable composing the has been redeclared (new let binding), then the inline should not work. Furthermore, if some part of the underlying expression is mutated, or if there consists of some impure function (or we simply assume conditionally that it is pure -- or effectively pure for the context of the refactoring).  The identification of mutable parts of an expression is also practically impossible given the current system, but work could likely be done to mend this due to borrows (effect system, recursive analysis of origin of memory). 
 
+
+
+
+
+
 In the multiple value case this all still applies, you have to make sure that the declared variable is not mutable, or if it is, it doesn't need the mutable. Now there is also the case of refcells and interior mutability. In the multiple case value, any direct aliases have a slightly different effect... copyable vs references. Must always follow the ownership system, so that anything that would've been valid before, has to be valid now e.g. no use of moved objects. 
+
 
 \section{Building reify and elide lifetimes}\label{S:buildreielide}
 Curiously enough, the elision rules as specified in the RFC [source?] specify exactly what steps to take in order to reify, not elide. The rules describe basically how the compiler performs reification of missing lifetime parameters internally. In order to build an elide tool, the steps have to be taken in reverse [include a proof of reversal?]. We can also note that the operations are not inverses of each other i.e. applying an elide after a reification will not necessarily return the original declaration. This is due to the ability to partially specification of lifetimes [example?]. The idea was to built the two operations based on the RFC as close as possible using variations of the RFC examples to test.
