@@ -360,9 +360,30 @@ In the original list of steps, there is no transformation between some abstract 
 Instead of the using the pretty printer, we can perform the replacements one by one which requires all the location information for each of the usages to be recorded. The only caveat is the removal of the actual local variable declaration. This is because although we can delete the entire declaration, it may not be the case that we can remove the blank line left in its place without additional analysis. The fact that compatibility with macros has not been a strong point of the tool and the relative ease of implementation, both contributed to the decision to opt for the pretty printing approach.
 
 \section{Implementing reify and elide lifetimes}
-Reify straightforward, but elide was not so simple. Still lacks all the possible cases... The reintroduction of lifetime parameters was based on the implementation of error reporting of missing lifetimes. The hope was that the compiller could simply output the reified function declarations, but it turns out that all that information is encoded in a completely different LLVM format and no easily translatable back to AST. (In general, after dropping levels, it's impossible to raise it up again, this is obviously useful in terms of making sure that the compiler is well structured, logical but from a tool perspective, being able to reverse these steps could prove very useful. In particular, this would help solve the problem of macros and the differing levels again). The idea in general is to count the lifetimes in the various positions (in/out, noting where self is) and then push vector describing partitions of the lifetime parameters. Then the pretty printer is used... The idea is to do a walk down the function declaration for lifetimes... 
+The general idea was to build the two operations based on the RFC as close as possible and use variations of the RFC examples to use as tests.
 
-The idea was to built the two operations based on the RFC as close as possible using variations of the RFC examples to test.
+\subsection{Reification}
+As Section XX described, implementation based on the RFC rules makes reify relatively straightforward. The reintroduction of lifetime parameters was based on the implementation of error reporting of missing lifetimes within the compiler. The original hope was that the compiler could simply output the reified function declarations, but it appeared that all that information is encoded in a different format (possibly for LLVM) and impossible to translate back to the AST. In general, this has been a recurring problem that after losing an abstraction level, it is impossible to raise it back up an abstraction level. Macros are another good example of this. While it is logical and useful for a compiler to perform these abstraction changes, for a tool, it is important to know which level to operate on, which steps are reversible and how your approach should be accomodated.
 
+The idea in general is to count the amount of lifetimes in the various positions: in, out, as well as noting the position of self. The idea is to do a walk the AST, looking specifically at the lifetimes present within a function declaration. In order to rebuild the function declaration with the correct lifetimes using the lifetime error reporting system, a vector describing a partition of the parameters is necessary. The vector contains a list of the different equivalence classes of lifetimes. Once rebuilt, the pretty printer can be used to replace the old function declaration.
+
+\subsection{Elision}
+
+Compared to reify, elide was not quite so simple. The list of constraints identified were shown in Section XX which have not been completely implemented. In particular, the tool bails out in cases where a partial elision could still occur, like Figure XXX. Even the constraints themselves are quite conservative and more work can definitely be done to improve them, particularly with parameters with bounds. Again, the idea is to walk the AST, counting the amount of lifetimes in various positions or situations. If all the constraints are met, then we use a `folder' much like inline-local to fold away the unnecessary parameters and pretty print the result.
+
+[example?]
+\begin{verbatim}
+fn foo<'a,'b>(x: &'a Debug, y: &'a Debug, z: &'b Debug)
+should become
+fn foo<'a>(x: &'a Debug, y: &'a Debug, z: &Debug)
+\end{verbatim}
+[Figure XXX]
+
+\subsection{The missing Boxed cases}
+In terms of reification, it does not appear to be the case that the error reporting mechanism was designed to correctly identify these lifetime positions. This likely makes the current approach incompatible and require a more customized approach. One of the major advantages of using the error reporting mechanism was the ability to automatically allocate and detect missing lifetimes and without it, a good amount of work probably needs to be done.
+
+Perhaps one of the most pressing reasons this case is not handled is due to the actual ambiguity of the RFC. This case does not even appear in any of the examples and despite the fact they should probably be interpreted as input lifetimes, it is not entirely apparent what this actually means. Certainly the interpretation of the rules are encoded in the actual compiler, it was not immediately apparent upon digging into the compiler source and possibly more subtle.
+
+...
 %\subsection{Unsuccessful attempts at refactorings?}
 %\subsubsection{Lessons learnt}
