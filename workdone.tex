@@ -125,7 +125,106 @@ Step 6 makes sure that if any variable composing the initializing expression has
 %In the multiple value case this all still applies, you have to make sure that the declared variable is not mutable, or if it is, it doesn't need the mutable. Now there is also the case of refcells and interior mutability. In the multiple case value, any direct aliases have a slightly different effect... copyable vs references. Must always follow the ownership system, so that anything that would've been valid before, has to be valid now e.g. no use of moved objects. 
 
 \section{Building reify and elide lifetimes}\label{S:buildreielide}
-Curiously enough, the elision rules as specified in the RFC [source?] specify exactly what steps to take in order to reify, not elide. The rules describe basically how the compiler performs reification of missing lifetime parameters internally. In order to build an elide tool, the steps have to be taken in reverse [include a proof of reversal?]. We can also note that the operations are not inverses of each other i.e. applying an elide after a reification will not necessarily return the original declaration. This is due to the ability to partially specification of lifetimes [example?]. The idea was to built the two operations based on the RFC as close as possible using variations of the RFC examples to test.
+Although the concepts of lifetimes and ownership are not trivial, the effect of reification and elision is actually quite simple and relatively easy to understand. In Figure \ref{Fig:lifetimes}, we can see input lifetimes marked in red or green for a number of function declarations. Green lifetimes belong to the self parameter (much like Python for object orientation or less similarly equivalent to `this' in Java). Output lifetimes are marked in blue which appear in the return type. The elision rules in Rust essentially describe which lifetime will be inferred if you forget to explicitly annotate them. They follow common patterns so that in most cases, you will never need to include any lifetime parameters in your function declarations. If no pattern is matched, then those lifetimes cannot be omitted. In the below figure, none of these lifetimes are actually needed.
+
+\begin{fig}
+{\verb|fn foo<'a>(x: &|}
+{\color{red} \verb|'a|}{\verb| Debug)|}
+
+{\verb|fn foo<'a, 'b>(x: &|}
+{\color{red} \verb|'a|}{\verb| Debug, y: &|}{\color{red} \verb|'b|}{\verb| Debug)|}
+
+{\verb|fn foo<'a>(x: &|}
+{\color{red} \verb|'a|}{\verb| Debug) -> &|}{\color{blue}\verb|'a|}{\verb| Point|}
+
+{\verb|fn foo<'a>(&|}
+{\color{green} \verb|'a|}{\verb| self)|}
+
+{\verb|fn foo<'a, 'b, 'c>(&|}
+{\color{green} \verb|'a|}{\verb| self, x: &|}{\color{red} \verb|'b|}{\verb| Debug, y: &|}
+{\color{red} \verb|'c|}{\verb| Debug)|}
+
+{\verb|fn foo<'a, 'b, 'c>(&|}
+{\color{green} \verb|'a|}{\verb| self, x: &|}{\color{red} \verb|'b|}{\verb| Debug, y: &|}
+{\color{red}\verb|'c|}{\verb| Debug) -> &|}{\color{blue}\verb|'a|}{\verb| Point|}
+
+\caption{Examples of lifetime parameters}
+\label{Fig:lifetimes}
+\end{fig}
+
+The rules essentially boil down to the following:
+\begin{enumerate}
+\item Any lifetimes as input (red or green) which are not marked become distinct lifetime parameters i.e. they will each use a fresh name like 'x, 'y, 'z etc.
+\item If there is only a single red (or green) lifetime, or there should be a single red (or green) lifetime, that lifetime is assigned to all blue output lifetimes.
+\item If there are multiple red or green lifetimes, the green self lifetime takes precedence and will be assigned to all blue output lifetimes.
+\item Any other case is an error.
+\end{enumerate}
+
+\begin{fig}
+\begin{verbatim}
+fn foo(x: &Debug)
+\end{verbatim}
+becomes: {\verb|  fn foo<'a>(x: &|}
+{\color{red} \verb|'a|}{\verb| Debug)|}
+
+\begin{verbatim}
+fn foo(x: &Debug, y: &Debug)
+\end{verbatim}
+becomes: {\verb|  fn foo<'a, 'b>(x: &|}
+{\color{red} \verb|'a|}{\verb| Debug, y: &|}{\color{red} \verb|'b|}{\verb| Debug)|}
+
+\caption{Examples of rule 1}
+\label{Fig:lifetimes}
+\end{fig}
+
+\begin{fig}
+\begin{verbatim}
+fn foo(x: &Debug) -> &Point
+\end{verbatim}
+becomes: {\verb|fn foo<'a>(x: &|}
+{\color{red} \verb|'a|}{\verb| Debug) -> &|}{\color{blue}\verb|'a|}{\verb| Point|}
+
+\begin{verbatim}
+fn foo(&self) -> &Point
+\end{verbatim}
+becomes: {\verb|fn foo<'a>(&|}
+{\color{green} \verb|'a|}{\verb| self) -> &|}{\color{blue}\verb|'a|}{\verb| Point|}
+
+\caption{Examples of rule 2}
+\label{Fig:lifetimes}
+\end{fig}
+
+\begin{fig}
+\begin{verbatim}
+fn foo(&self, x: &Debug) -> &Point
+\end{verbatim}
+becomes: {\verb|fn foo<'a, 'b>(&|}
+{\color{green} \verb|'a|}{\verb| self, x: &|}{\color{red} \verb|'b|}{\verb| Debug) -> &|}{\color{blue}\verb|'a|}{\verb| Point|}
+
+\begin{verbatim}
+fn foo(x: &Debug, y: &Debug) -> &Point
+\end{verbatim}
+does not compile
+
+\caption{Examples of rule 3 and rule 4}
+\label{Fig:lifetimes}
+\end{fig}
+
+Now the idea is to build a tool to annotate these lifetimes where they have been omitted (reification) or to remove them where they are unnecessary due to compiler inference (elision). Despite being called the elision rules in the RFC (source?), they actually specify exactly what steps to take in order to reify, not elide. The rules describe basically how the compiler performs reification of missing lifetime parameters internally and so all a tool needs to do is follow the rules. In order to build an elide tool, the steps have to be taken in reverse [include a proof of reversal?]. 
+
+Here is an list of constraints that will ensure that only valid elisions may occur (although will not allow all of them):
+\begin{itemize}
+\item Do not elide if there are multiple output lifetimes
+\item Do not elide if the return is not parameterized by the function i.e. in the {\verb|<...>|}
+\item Do not elide if an input lifetime is used more than once
+\item If there is an output lifetime, either it follows the self lifetime parameter, or it follows the only input parameter
+\item Do not elide an input lifetime if it is not parameterized by the function
+\item Do not elide if there are bounds on a lifetime i.e. there are defined relationships between lifetimes, like 'a must live as long as 'b.
+\end{itemize}
+
+We can also note that the operations are not inverses of each other i.e. applying an elide after a reification will not necessarily return the original declaration. This is due to the ability to only partially annotate the expected lifetimes [example?].
+
+While the only lifetime parameters seen here accompany an explicit borrow using `\&', they are not the only positions where a lifetime can occur. There is also the case where a trait might be boxed [show Nick's example].
 
 %One way of performing renaming is to use access construction. This assumes that we have a procedure to `construct an access', which when given a position and declaration, will bind to that declaration at that position. To rename, you first compute the declarations for every usage. You rename the declaration and then go through every name and construct an access which will bind to the declaration it bound to originally, replacing the original name. Using the process of constructing accesses, new names may have additional qualification, but will still yield a program with the same binding structure. Elide doesn't handle anything non-trivial, lifetime bounds, usage of a lifetime variable twice...
 
@@ -191,8 +290,7 @@ In order to provide the necessary capabilities of name resolution, a number of m
 \subsection{The lack of inheritance}
 Had Rust implemented simple, single inheritance, creation of a walker to terminate at a given node would be quite trivial. An obvious alternative would be to single copy-paste the name resolution walker and modify the functionality as per necessary. Unfortunately, even if the changes were accepted upstream, this demanded heavy modification to a number of interfaces and duplication of further code which relied on the name resolution walker as the only possible type of name resolution walker. Basically it was never built for a generic implementation. Inheritance is a proposed addition to Rust, however, little progress has been made, and there are a number of outstanding issues as to how it would fit in with the existing type system [source?].
 
-
-The second attempted approach was to attempt delegation to simulate the use of inheritance. Wrapping the outer API of the existing walker with a new walker is quite simple, however, reverting control back to the new walker is not so trivial as calls will normally just continue with the internal walker and not with the wrapped one. In some situations, refactoring of the code to force the walk\_X functions to occur at the end of each visit function would allow very little overall duplication of code, however if multiple walk\_X calls are made within a single function there is no simple solution without modification to the old walker. Even performing this proposed modification causes difficulty due to Rust and the mandatory requirement of ownership. In order to simulate inheritance, one approach would be to have the existing walker hold a field which contained a reference to either itself (for the default behaviour) or the new walker (for the new behaviour). Unfortunately, an object with a reference to itself under normal circumstances is quite difficult and prevented by the compiler due to move semantics. The ideal of one (modifying) reference to any object is broken with any cyclical or circular referencing. There are ways around this, otherwise Rust would suffer in flexibility, but most of them require planning ahead like the use of reference counting. The RC\textless{}X\textgreater{} type is a reference counted pointer and solves any problems with creating circular graphs, however to use them for name resolution likely required conversion of the entire library.
+The second attempted approach was to attempt delegation to simulate the use of inheritance. Wrapping the outer API of the existing walker with a new walker is quite simple, however, reverting control back to the new walker is not so trivial as calls will normally just continue with the internal walker and not with the wrapped one. In some situations, refactoring of the code to force the walk\_X functions to occur at the end of each visit function would allow very little overall duplication of code, however if multiple walk\_X calls are made within a single function there is no simple solution without modification to the old walker. Even performing this proposed modification causes difficulty due to Rust and the mandatory requirement of ownership. In order to simulate inheritance, one approach would be to have the existing walker hold a field which contained a reference to either itself (for the default behaviour) or the new walker (for the new behaviour). Unfortunately, an object with a reference to itself under normal circumstances is quite difficult and prevented by the compiler due to move semantics. The ideal of one (modifying) reference to any object is broken with any cyclical or circular referencing. There are ways around this, otherwise Rust would suffer in flexibility, but most of them require planning ahead like the use of reference counting. The {\verb|RC<X>|} type is a reference counted pointer and solves any problems with creating circular graphs, however to use them for name resolution likely required conversion of the entire library.
 
 Accepting that reference counting would entail much more work, the last approach was to hand a callback to the resolver to invoke at every AST node. It functions generally for what is required but in terms of modifying without changes to original implementation, inheritance still appears to be the ideal approach (for the Visitor pattern).
 
@@ -264,6 +362,7 @@ Instead of the using the pretty printer, we can perform the replacements one by 
 \section{Implementing reify and elide lifetimes}
 Reify straightforward, but elide was not so simple. Still lacks all the possible cases... The reintroduction of lifetime parameters was based on the implementation of error reporting of missing lifetimes. The hope was that the compiller could simply output the reified function declarations, but it turns out that all that information is encoded in a completely different LLVM format and no easily translatable back to AST. (In general, after dropping levels, it's impossible to raise it up again, this is obviously useful in terms of making sure that the compiler is well structured, logical but from a tool perspective, being able to reverse these steps could prove very useful. In particular, this would help solve the problem of macros and the differing levels again). The idea in general is to count the lifetimes in the various positions (in/out, noting where self is) and then push vector describing partitions of the lifetime parameters. Then the pretty printer is used... The idea is to do a walk down the function declaration for lifetimes... 
 
+The idea was to built the two operations based on the RFC as close as possible using variations of the RFC examples to test.
 
 %\subsection{Unsuccessful attempts at refactorings?}
 %\subsubsection{Lessons learnt}
