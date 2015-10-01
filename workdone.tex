@@ -338,8 +338,6 @@ To begin replacing the usages of the local variable with the initializing expres
 
 Step 7 is actually fairly trivial to implement because all that needs to be done is to add an additional check during the folding just described to remove the affected declaration nodes. From here, the tool uses the inbuilt pretty printer in the compiler to format the modified AST.
 
-Only a description has been explored, there is some checking, but the effects system, no pure functions... none of that can actually be verified, so arguably not much better than any other languages that don't bother with mut at all. Interestingly enough, mut needs purity to ensure this type of refactoring... 
-
 \subsection{Concrete example with order of operations}
 [Insert an actual inlining example - with order of operations]
 \begin{verbatim}
@@ -369,7 +367,7 @@ The idea in general is to count the amount of lifetimes in the various positions
 
 \subsection{Elision}
 
-Compared to reify, elide was not quite so simple. The list of constraints identified were shown in Section XX which have not been completely implemented. In particular, the tool bails out in cases where a partial elision could still occur, like Figure XXX. Even the constraints themselves are quite conservative and more work can definitely be done to improve them, particularly with parameters with bounds. Again, the idea is to walk the AST, counting the amount of lifetimes in various positions or situations. If all the constraints are met, then we use a `folder' much like inline-local to fold away the unnecessary parameters and pretty print the result.
+Compared to reify, elide was not quite so simple. The list of constraints identified were shown in Section XX which have not been completely implemented. In particular, the tool bails out in cases where a partial elision could still occur, like Figure XXX. Even the constraints themselves are quite conservative and more work can definitely be done to improve them, particularly with parameters with bounds. Again, the idea is to walk the AST, counting the amount of lifetimes in various positions or situations. If all the constraints are met, then we use a `folder' much like inline-local to fold away the unnecessary parameters and simply pretty print the result.
 
 [example?]
 \begin{verbatim}
