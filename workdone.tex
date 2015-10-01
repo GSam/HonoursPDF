@@ -71,17 +71,29 @@ When performing a renaming, there are two main operations that need to be perfor
 \item Finding the declaration of an acesss
 \end{itemize}
 
-All of this information can be found in the save-analysis data, however, it is completely static and simplified. In order to be able to perform these operations in the general case, the compiler has to be run again. For a refactoring to succeed, all names in a refactored program must bind to the same declaration as the original program \cite{schafer2010specification}. All original uses should be updated to bind to the renamed declaration and any other usages binding to a different declaration, remain binded to a different declaration.
- 
 %\subsection{Access construction}
+
+All of this information can be found in the save-analysis data, however, it is completely static and simplified. In order to be able to perform these operations in the general case, the compiler has to be run again. For a refactoring to succeed, all names in a refactored program must bind to the same declaration as the original program \cite{schafer2010specification}. All original uses should be updated to bind to the renamed declaration and any other usages binding to a different declaration, remain binded to a different declaration.
 
 \section{Building inline-local}\label{S:buildIL}
 Of the available literature, it appears that the authors of the JRRT describe the act of inlining a variable in the most specific detail. At the time, they also note the existing scarcity of indepth documentation for specific refactorings[?]. Working with Java in particular, they note that due to the limitations of Java, it is impossible to absolutely ensure 100\% correctness under even common circumstances. In this section, a description as best as possible within the context of Rust will be shown and how despite promising additional guarantees such as mutability, absolute correctness is still quite out of reach.
 
-For this analysis, in order to reduce the problem space (as well as accurately quantifying it), a number of assumptions have been made. First of all, only inlining of standard local variables will be discussed and not variable-like items such as function parameters. There are completely sensible destructors, operator overloading?
-If there is exactly one usage of a local in inline, then 	 Due to uniqueness constraints in Rust, if there is just a single usage, there really is just a single usage without any aliases.
+For this analysis, in order to reduce the problem space (as well as accurately quantifying it), a number of assumptions have been made. First of all, only inlining of standard local variables will be discussed and not variable-like items such as function parameters. There is also the assumption that any code marked as unsafe (which does not follow the usual Rust ownership rules) should not interfere with the refactoring. Furthermore that there only exists completely sensible destructors and operator overloads (in other words, impliict behaviour not necessarily defined at the same location) e.g. ones that do not somehow modify a global variable. Pure functions used to be able to be checked in Rust but due to diffculty in definition, they were dropped. Compare this to Haskell folding. This cannot be solved in Rust, like Java. In Figure \ref{Fig:funcinline}, we can see how the inlining of a database call which might insert a single record will suddenly be repeated if it is inlined. Constructors - singletons...
 
-Regardless of mutability this should work. If any variable composing the has been redeclared (new let binding), then the inline should not work. Furthermore, if some part of the underlying expression is mutated, or if there consists of some impure function. Pure functions used to be able to be checked in Rust but due to diffculty in definition, they were dropped. Compare this to Haskell folding. This cannot be solved in Rust, like Java. The identification of mutable parts of an expression is also practically impossible given the current system, but work could likely be done to mend this due to borrows (effect system, recursive analysis of origin of memory). 
+\begin{fig}[H]
+\begin{verbatim}
+    let a = insert_into_db();          // After inlining a
+    println!("{:?}", a);               println!("{:?}", insert_into_db());
+    println!("{:?}", a);               println!("{:?}", insert_into_db());
+\end{verbatim}
+\caption{Functions violating behaviour preservation with inline local}
+\label{Fig:funcinline}
+\end{fig}
+
+\subsection{Description}
+If there is exactly one usage of a local variable in an inline, then due to uniqueness constraints in Rust, there really is just a single usage without any aliases. This is unlike C++ for instance, where some other pointer could still refer to the same section of memory.
+
+Regardless of mutability this should work. If any variable composing the has been redeclared (new let binding), then the inline should not work. Furthermore, if some part of the underlying expression is mutated, or if there consists of some impure function (or we simply assume conditionally that it is pure -- or effectively pure for the context of the refactoring).  The identification of mutable parts of an expression is also practically impossible given the current system, but work could likely be done to mend this due to borrows (effect system, recursive analysis of origin of memory). 
 
 In the multiple value case this all still applies, you have to make sure that the declared variable is not mutable, or if it is, it doesn't need the mutable. Now there is also the case of refcells and interior mutability. In the multiple case value, any direct aliases have a slightly different effect... copyable vs references. Must always follow the ownership system, so that anything that would've been valid before, has to be valid now e.g. no use of moved objects. 
 
@@ -99,8 +111,6 @@ In this chapter, details of the design are elaborated with greater detail on the
 
 % With API changing, one of the first to implement anything which interfaces in this particular manner.
 
-%[Split into two chapters?]
-% Why was it in Rust vs other languages? 
 \section{Decisions made in the beginning}
 \subsection{Choice of language}
 The choice of implementing the refactoring tool in Rust is for a number of reasons. Without a strong background in the language, performing even manual refactoring would likely be more difficult. The Rust compiler is a major component of the project and being able to modify the compiler and to understand the function of the compiler has been incredibly important. This is especially the case when documentation is not up to date and the level of support for some feature or API is unknown. It is also critical when there are bugs in the compiler that need to be fixed and extensions are required to facilitate refactoring. The tool itself could also be used to test its own source code. Lastly, a number of API and interoperability problems would likely be avoided and so limiting compiler interactions to Rust code appears to be a favourable idea. [Knowledge of Rust had to be built from the ground up, along with a number of completely unfamiliar language concepts.]
