@@ -3,8 +3,6 @@ The work done so far serves as definite proof of the concept and the techniques 
 
 % The scope of this additional work extends far beyond the time allocated and should serve as an adequate starting point for those looking to extend this work in the future. At this point the goal of this work is to address immediate shortcomings in the tool and to leave the more complicated refactoring and infrastructure changes for others (while providing useful commentary and insight). Lastly, with Rust being an open source project, there is the issue of upstreaming code and being mindful of the fact that the tool should follow as many coding conventions as possible.
 
-Compare this to Haskell folding. Eclipse In downloading and installing a recent version of Eclipse, the consideration of even LHS... 
-
 % DON'T FORGET to mention
 % Contribution is about a dozen commits to the main compiler repository: https://github.com/rust-lang/rust/commits/master?author=gsam
 
@@ -24,7 +22,7 @@ Compare this to Haskell folding. Eclipse In downloading and installing a recent 
 Although this feature is mostly implemented, an additional area of particular interest would be to investigate the overall effect of refactorings across multiple crates and how warnings should be presented when changes occur that might affect a public API. [Examining the evaluation, this appears to be a major shortcoming in how not only this tool functions, but how other tools function across codebases]. An investigation of Crates.io \cite{cratesio15}, the Rust package repository would likely yield interesting findings and in particular, identification of a description of the steps necessary to take when an API must change and how that should be dealt with from a community perspective. Looking at how the UNIX/Linux community deals with API or ABI changes in their open source software should also prove useful.
 
 \section{Testing}
-[Going forward, the refactoring tool needs significantly more testing to ensure that the current set of refactorings are correct. In this scenario testing has an even more important role, it is to ensure that the existing refactorings are not broken with further changes to the tool.] Furthermore, the refactoring tool evolves independently of the Rust compiler and changes to the compiler are likely to affect the inevitable outcome of the refactoring tool. Already, a number of existing bugs have been found and reintroducing them by accident does not appear to be difficult with current limitations in the amount of testing and documentation available for some areas of the compiler. With unstable API it is unsurprising and so in this manner, expanding testing does not necessarily need to be confined to the refactoring tool. 
+[Going forward, the refactoring tool needs significantly more testing to ensure that the current set of refactorings are correct. In this scenario testing has an even more important role, it is to ensure that the existing refactorings are not broken with further changes to the tool.] Furthermore, the refactoring tool evolves independently of the Rust compiler and changes to the compiler are likely to affect the inevitable outcome of the refactoring tool. Already, a number of existing bugs have been found and reintroducing them by accident does not appear to be difficult with current limitations in the amount of testing and documentation available for some areas of the compiler. With unstable API it is unsurprising and so in this manner, expanding testing does not necessarily need to be confined to the refactoring tool. At the moment, it has much less testing for multi-file. 
 
 % Tests should continue to be added for the remainder of the project to eliminate as many edge cases as possible.
 % With the existing drastic changes to the approach required to progress to this stage, it appears likely that such changes are to be expected. 
@@ -35,8 +33,6 @@ With limited experience with Rust in general, using real-world code to attempt r
 
 \section{Current test failures}
 As of right now, the test cases identify [X] incorrectly handled, but somewhat exceptional cases. A few of them, likely require the addition of further investigation as to the source of the error. On the other hand, a few of them are relatively subjective. For instance, crate relative names break their current qualifications (further explanation?). Function local definitions cause various issues... although they should be solved without too much effort. Elision, being only partially complete has some obvious holes. Furthermore, xxx.
-
-Use of pretty printer vs using other approaches...
 
 \section{Future refactorings}
 In terms of future refactorings, there are a number of next-step refactorings which should use most of the same infrastructure of the existing tool. For instance, struct fields or function arguments should function similarly to local variables and trait renaming should use most of the same conventions provided by concrete types like structs or enums. This is because of the output of save-analysis and the simplifications made in process of generating the csv output.
@@ -76,7 +72,7 @@ A non-comprehensive list of further refactorings that might be considered are:
 
 \section{Additional compiler improvements}
 % -Z save-analysis
-Given the current architecture of the tool, there are a number of further improvements that could be made to the compiler to improve its efficacy and efficiency. Using -Z save-analysis provides another additional step before a refactoring can be made. Furthermore, it must be generated every time a refactoring is to be undergone. By providing a library and API with which this information can be queried using the existing compiler API, the need for CSV parsing and associated unrelated complexity disappears. The actual performance offset of having to run the compiler again to generate this information does not disappear however.  By running all the way through to analysis, this still takes a significant amount of time. 
+Given the current architecture of the tool, there are a number of further improvements that could be made to the compiler to improve its efficacy and efficiency. Using {\verb|-Zsave-analysis|} provides another additional step before a refactoring can be made. Furthermore, it must be generated every time a refactoring is to be undergone. By providing a library and API with which this information can be queried using the existing compiler API, the need for CSV parsing and associated unrelated complexity disappears. The actual performance offset of having to run the compiler again to generate this information does not disappear however.  By running all the way through to analysis, this still takes a significant amount of time. 
 
 %[reference to compiler stages from earlier section]
 
@@ -86,7 +82,7 @@ Helping to address performance in the compiler itself in the general case should
 % Macro hygiene with types
 % Renaming within macros - seems like a big problem
 
-Currently macros are completely ignored by the save-analysis report generated by the compiler. As it is, this appears to be a major shortcoming in the refactoring tool that has yet to be addressed. However, not a lot can be done at this point due to the general limitations regarding macros and how they are typically ignored when generating metadata from the compiler. Without being able to identify any spans associated with macros, it isn't possible to make the necessary code transformations. Implementing the necessary functionality is certainly non-trivial and likely requires much better domain knowledge than that which could be provided here.
+Currently macros are completely ignored by the save-analysis report generated by the compiler. As it is, this appears to be a major shortcoming in the refactoring tool that has yet to be addressed. However, not a lot can be done at this point due to the general limitations regarding macros and how they are typically ignored when generating metadata from the compiler. Without being able to identify any spans associated with macros, it isn't possible to make the necessary code transformations. Implementing the necessary functionality is certainly non-trivial and likely requires much better domain knowledge than that which could be provided here. Knowing where to position to tool in terms of use of pretty printer vs using other approaches and the entire approach to the macro system needs to properly be addressed. 
 
 \section{Miscellaneous}
 % Refactoring practical...

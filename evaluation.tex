@@ -5,24 +5,25 @@ This chapter examines the correctness and practical use of the tool. The correct
 Included in the code repository there is a number of tests to ensure that the refactoring tool functions as expected. Each test consists of a csv dump file, a Rust source file and if the refactoring is designed to be successful, an output Rust source file. 
 
 %Correctness testing - Formal, informal. 
-Formal foundations for refactoring in general appears incredibly weak as raised by the JRRT paper. Even the most trivial of refactorings rarely have huge amounts of detail and are based solely on implementation. Aiming to create any reasonable formalism appears to be an arduous task, and not one met with many rewards, particularly when the goal here has been specifically the production of a Rust refactoring tool. 
+Formal foundations for refactoring in general appears incredibly weak as raised by the JRRT paper. Even the most trivial of refactorings rarely have huge amounts of detail and are based solely on implementation. Aiming to create any reasonable formalism appears to be an arduous task, and not one met with many rewards, particularly when the goal here has been specifically the production of a Rust refactoring tool. Not only that, but the amount of time available and the necessary experience appeared thoroughly inadequate for producing anything meaningful for others. 
 
 Where possible, informal arguments have been given as to how different refactorings work, but to address any shortcomings, the a major focus has been on implementing test cases for each of the individual refactorings. In particular, both positive and negative cases have been considered, along with as many edge cases as could be possibly thought of. Integration testing vs unit-testing. The compiler is tightly coupled with the refactoring tool and compare this to the modular refactoring definitions definable by aspects [obliviousness and quantification, refer to paper] or the Scala refactoring tool... The compiler is still quite unstable, although it has finally reached release status... Even amongst the six months or so working on this tool, so many API have changed under my feet. While unit testing would provide more assurance that the code written is correct, a major part of the underlying code is actually in the compiler and the refactoring tool has to trust that the code is already correct. Massive complexities, that just can't be nailed down. To continue to write unit tests in the compiler was an option, but one that clearly provided less benefit than testing the actual cases properly. Currently there stands a total of [85?] tests.
 
-State why formalism is hard and whether others did it.
+%State why formalism is hard and whether others did it.
 
-More conservative vs more correct. Fast vs slow.
+% TODOOOO More conservative vs more correct. Fast vs slow.
 
-Describing the nature of the testing - What they actually do.. what failures there are still - to be listed in the appendix perhaps?
+% TODOOOO Describing the nature of the testing - What they actually do.. what failures there are still - to be listed in the appendix perhaps?
 
 %[Need to look more back at Scala thesis etc...]
 
 \subsection{Correctness of renamings}
-The testing suite attempts to test both the cases where a refactoring should occur, and cases where it should not due to the variations in conflict types as outlined in Section \ref{S:different}. The tests use the inbuilt Rust functionality for providing testing and currently there around 20 different tests which should be doubled or tripled before the end of the project. Given the project time constraints, test cases appear to be the most effective way to ensure correctness. 
+The testing suite attempts to test both the cases where a refactoring should occur, and cases where it should not due to the variations in conflict types as outlined in Section \ref{S:different}. The tests use the inbuilt Rust functionality for providing testing and currently there around XX tests specifically written to test renaming. Given the project time constraints, again, test cases appeared to be the most effective way to ensure correctness.
 
 %After reviewing the literature and noting the limited attempts at correctness, whether or not informal justifcations of correctness are satisfactory remains a big question.
+%  20 different tests which should be doubled or tripled before the end of the project
 
-Example of “var renaming” and why you cover all cases.
+Example of “var renaming” and why you cover all cases. When running any of the renaming refactorings, name resolution will run to find any super-block conflict or some cases same-block conflicts. Afterwards, any sub-block conflicts will be caught in a compilation run. Additionally, there are also a few edge cases where the import graph needs to be rebuilt to identify some same-block conflicts which were missed by name resolution.
 \begin{fig}
 {\verb|let a = 2; // 1. Super-block conflict: caught by name resolution|}
 
@@ -55,7 +56,7 @@ At the moment there are tests for both renaming of structs and enums with detect
 \subsection{Examining a particular edge case}
 %Examining a particularly interesting edge case - the destructuring variable...
 
-Conflicts with struct destructures are fine when given a name, but not when they are inferred.
+Conflicts with struct destructures are fine when given a name, but not when they are inferred. Here we can see a destructuring assignment to a Point `class' with an x and y field. Without specifiying a name, a variable can take the name of a field. 
 \begin{verbatim}
 FINE:
 
@@ -78,21 +79,27 @@ With the save-analysis, there is also the limitation of the missing macros in th
 Here we can quote Bill Opdyke's preservation constraints and adapt them for Rust (traits etc.). Distinct member names is quite an obvious one. Distinct class names. Compatible signature (for type renaming mostly). Type safe assignment (this shouldn't be any problem). Semantically equivalent is hard though in any case... 
 
 \subsection{Correctness of inline-local}
-definitely still a proof of concept, uses pretty printer to modify code... expands macros by accident (better approach may be to write a reverse source matching method). comments... although not location preserving... In terms of changing the underlying memory, this is still not implemented. 
+The entire inline-local refactoring is definitely still a proof of concept. The majority of the work on this refactoring has been in exploring and describing the knowledge gained. While there is some obvious checking, without an `effect' system and pure functions, there is a good deal of missing pieces in the validation checks. Arguably, the situation is not much better than any other languages that don't bother with mutability or ownership at all.
 
+The entire approach with the pretty printer is definitely not without flaws. One thing that was tackled with the use of the pretty printer was the preservation of comments. Although not necessarily location preserving, dropping the comments altogether would have been a much more serious issue. Comments can be quite important and help to explain very complicated or arcane pieces of code. On the other hand, a transformation approach could be more likely to drop information.
 
+% uses pretty printer to modify code... expands macros by accident (better approach may be to write a reverse source matching method). comments... although not location preserving... In terms of changing the underlying memory, this is still not implemented. 
 
 flaws in logic, or more likely flaws in understanding of the rust language... inline...
 
-The majority of the work on this refactoring has been in exploring and describing the knowledge gained. While there is some obvious checking, without an `effect' system and pure functions, there is a good deal of missing pieces in the validation checks. Arguably, the situation is not much better than any other languages that don't bother with mutability or ownership at all.
+Hopefully, this work provides some form of contribution to the refactoring community.
 
 \subsection{Correctness of elide-reify}
-pretty printer... with elide. trouble with using the pretty printer, but the function impl should not have any major issues (elimination of comments). calling full blown printer is not convenient at all...
-Almost completely confident with reify because of a number of different factors, RFC is straightforward compared with code, no specific edge cases, and a number of unit tests which cover parts of the RFC. In particular, many atttempts at reification which do fail, fail with the premise that the function was invalid in the first place which is impossible since the csv required needs the program to have compiled in the first place. Correctness is probably not the real problem now that we can see how flawed the approach is.
+
+At least in regards to the situations identified, quite confident with reify because of a number of different factors, RFC is straightforward compared with code, no specific edge cases, and a number of unit tests which cover parts of the RFC. In particular, many atttempts at reification which do fail, fail with the premise that the function was invalid in the first place which is impossible since the CSV required needs the program to have compiled in the first place. 
+
+%Correctness is probably not the real problem now that we can see how flawed the approach is.
 
 Elide is likely correct within the given constraints given. In most cases, it would outright fail if there is anything too complex. This has advantages and disadvantages of course. Because it only handles a subset, it is more likely to be correct. Compared with reify, elide has much more edge cases or cases that might be considered (it's the inverse of the four rules, which leaves a lot more exceptions).
 
+There is still the Boxed case which has not been completely addressed yet. How often it is used, and how useful the reification and elisions are, is unknown. Definitely one of the pitfalls of not having actual Rust users. 
 
+%pretty printer... with elide. trouble with using the pretty printer, but the function impl should not have any major issues (elimination of comments). calling full blown printer is not convenient at all...
 
 \section{Extent of refactorings}
 %Given only refactorings concerning renaming have been tackled, the scope of the investigation is still severely limited. 
@@ -116,7 +123,7 @@ The refactorings tackled predominantly concern renaming, however, the addition o
 Looking at what is necessary to invoke the refactoring tool we can determine a general description of steps required:
 
 \begin{enumerate}
-\item Compile a program with -Z save-analysis to produce a csv analysis file.
+\item Compile a program with {\verb|-Zsave-analysis|} to produce a csv analysis file.
 \item Either inspect the csv manually or run the refactoring library to determine the node id of the element you wish you alter.
 \item Run the refactoring tool, choosing your desired refactoring. With a rename, the new name must be supplied, the node id and (when multi-file refactorings are implemented) the file.
 \item Wait for the refactoring to occur and the compiler to run all the proper checks. 
@@ -130,8 +137,6 @@ Having to regnerate a csv file every time a refactoring has been made is definit
 Looking at the list given in the previous section on ideal steps for a refactoring tool, we can see that the tool we have built... 
 There's no reason we cannot just plug it into an emacs plugin for instance, or build a simple GUI (although there is the question of building the FFI interfaces).
 
-At the moment, it has much less testing for multi-file. 
-
 % This could be done outside of the refactoring library, in a persisting background process but on the other hand,
 
 \section{Analyzing time taken or performance evaluation}
@@ -143,7 +148,8 @@ Typically, the main consumption of compile time is with the analysis phase and g
 This should be a reasonable test for some metric of the effectiveness of the tool...
 
 Things to compare against, the amount of usages for renamings, comparing the different renamings for speed differences, the time taken to reach analysis vs overall compilation times. 
-I have some examples, but I think Nick should know best what crates might be decent to test with.
+%I have some examples, but I think Nick should know best what crates might be decent to test with.
+In particular, the crates that will be tested are essentially the top 5 most used crates on Crates.io. These are: 
 
 Performance - how well does it perform as different aspects change:
 
@@ -165,8 +171,10 @@ The types of considerations which could have been done are as follows:
 %Design considerations - well, workflow problems
 \begin{itemize}
 
-\item Comparing to Eclipse or IntelliJ perhaps... but the language differences make it quite difficult, time complexity and what checking they actually perform isn't entirely clear. Eclipse could be done by looking at their respective codebase, but fundamentally Java is quite a different language to Rust and targeting the Java VM vs. low level code. The functionality provided by my tool is also Rust specific in some cases. Inline vs in Java - mutability constraints.
+\item Comparison to Eclipse or IntelliJ -- While this could provide some useful points of contrast, the language differences would make many of the comparisons quite difficult or meaningless. What is not immediately clear is how much correctness checking these tools actually perform and where they stand on the ease of use vs correctness continuum. Eclipse could be done by looking at their respective codebase, but fundamentally Java is quite a different language to Rust and targeting the Java VM vs. low level code obviously brings out different complexities. The time complexity and goals might be completely different. There is also the fact that there is now Rust specific refactorings, but one point of comparison is definitely inlining. In downloading and installing a recent version of Eclipse, the consideration of even LHS was ignored.
 
-\item User study - Why this is inappropriate? Could bring in users of Rust, but the language is not that popular still with only (XXX users). This wasn't a good idea, because finding the adequate amount of experience and users [target demographic]. There would also be nothing to compare to, besides perhaps manual refactoring... Availability + bias of people who know the language and its workings well. A majority of them time was still put into determining what could even be done and trying to juggle an user evaluation would detract from the goal of exploring the actual problems with a specifically Rust, refactoring tool. 
+%Compare this to Haskell folding. 
+
+\item User study - Why this is inappropriate? Could bring in users of Rust, but the language is not that popular still with only (XXX users). Finding the adequate amount of experience and users [target demographic] would likely be limited to those working heavily with the language, possibly working on the compiler. There would also be nothing to compare to, besides perhaps manual refactoring. The study would have to properly address availability and bias of people who know the language and its workings well. A good deal of time was spent just determining what could even be done as part of this tool and trying to juggle an user evaluation would have detracted from the goal of exploring the actual problems with a specifically Rust, refactoring tool. 
 
 \end{itemize}
