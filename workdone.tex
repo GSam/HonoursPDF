@@ -1,7 +1,7 @@
 \chapter{Refactoring Rust}\label{C:wd}
+In this chapter, the high level issues of refactoring within Rust are tackled while attempting to avoid as many implementation specific details as possible. In Section \ref{S:generalapproach}, a standard design for a refactoring tool is outlined. In Section \ref{S:different}, conflicts in name introduction is explored in detail which leads on to Section \ref{S:br}, which tackles renaming in Rust. Section \ref{S:buildIL} looks at specific requirements for inlining a local variable and lastly, Section \ref{S:buildreielide} explores reification and elision as a unique and useful Rust refactoring.
 
-[Some description to add?]
-\section{The general approach to refactoring}
+\section{The general approach to refactoring}\label{S:generalapproach}
 %\subsection{The general approach to refactoring}
 The Scala Refactoring tool describes a general approach to refactoring which can serve as a guideline for what to provide and what goals should be achieved when designing a refactoring tool \cite{stocker2010scala}.
 %[Taken from http://scala-refactoring.org/wp-content/uploads/scala-refactoring.pdf to transcribe]
@@ -76,7 +76,7 @@ When performing a renaming, there are two main operations that need to be perfor
 All of this information can be found in the save-analysis data, however, it is completely static and simplified. In order to be able to perform these operations in the general case, the compiler has to be run again. For a refactoring to succeed, all names in a refactored program must bind to the same declaration as the original program \cite{schafer2010specification}. All original uses should be updated to bind to the renamed declaration and any other usages binding to a different declaration, remain binded to a different declaration.
 
 \section{Building inline-local}\label{S:buildIL}
-Of the available literature, it appears that the authors of the JRRT describe the act of inlining a variable in the most specific detail. At the time, they also note the existing scarcity of indepth documentation for specific refactorings[?]. Working with Java in particular, they note that due to the limitations of Java, it is impossible to absolutely ensure 100\% correctness under even common circumstances. In this section, a description as best as possible within the context of Rust will be shown and how despite promising additional guarantees such as mutability, absolute correctness is still quite out of reach.
+Of the available literature, it appears that the authors of the JRRT describe the act of inlining a variable in the most specific detail. At the time, they also note the existing scarcity of indepth documentation for specific refactorings \cite{schafer2010specification}. Working with Java in particular, they note that due to the limitations of Java, it is impossible to absolutely ensure 100\% correctness under even common circumstances. In this section, a description as best as possible within the context of Rust will be shown and how despite promising additional guarantees such as mutability, absolute correctness is still quite out of reach.
 
 \subsection{Initial assumptions}
 For this analysis, in order to reduce the problem space (as well as applying an accurate quantification), a number of assumptions have been made. First of all, only inlining of standard local variables will be discussed and not variable-like items such as function parameters. There is also the assumption that any code marked as unsafe (which does not follow the usual Rust ownership rules) should not interfere with the refactoring. Furthermore we assume that there only exists sensible destructors and operator overloads (or in other words, implicit behaviour in other locations) e.g. no actions that somehow modify a global variable which may affect our inline. We also assume that there is at least one usage of the variable and the manual equivalent inline actually holds meaning.
@@ -86,16 +86,16 @@ There are a number of factors to be considered when inlining a variable. The fir
 
 \begin{enumerate} 
 \item Check the initializing expression for the variable. If there are any non-pure function calls, abort the operation.
-\item If the initializing expression has any references to mutable memory, abort the operation.
+\item If the initializing expression has any references to mutable memory, abort.
 \item If the variable is only used once and never used as a right-hand side, skip to step 6.
-\item If the variable is declared `mut' and the `mut' declaration was required, abort the operation.
-\item If the variable has interior mutability, abort the operation.
-\item Visit each usage of the local variable, replacing the variable but also checking that any identifiers used in the initializing expression refer to the same variables. If not, abort the operation.
+\item If the variable is declared `mut' and the `mut' declaration was required, abort.
+\item If the variable has interior mutability, abort.
+\item Visit each usage of the local variable, replacing the variable but also checking that any identifiers used in the initializing expression refer to the same variables. If not, abort.
 \item Remove the declaration of the local variable.
 \end{enumerate}
 
 \subsection{Explanations and issues}\label{S:inlineissues}
-This description is optimistic in that an invalid refactoring should fail, but it also means that some valid refactorings may also fail. Our first point of interest is the requirement for pure function calls which have no side effects. Although it appears to be a reasonable requirement, the function actually need only be conditionally pure for the code section of interest for the inline. This appears to be a very difficult analysis, when even regular purity cannot be predicted in Rust. Much like the case in Java for JRRT [?], the issue of identification of these functions cannot be solved in Rust. Pure functions were part of the language definition earlier on in the development of Rust but due to difficulty in producing an exact definition, they were abandoned [?]. In Figure \ref{Fig:funcinline}, we can see how the inlining of a database call which might insert a single record will suddenly be repeated if it is inlined. Now an interesting question is the presence of constructors or factory methods. In some cases, where there is only a single usage the inline could be valid, but the code in the constructor might violate purity. When there are multiple usages, being immutable and overriding the correct equality operators may suffice for inlining over most situations, but requiring strict singletons might be necessary for others. In any case, constructors appear to be an additional level of difficulty much beyond the current level of analysis.
+This description is optimistic in that an invalid refactoring should fail, but it also means that some valid refactorings may also fail. Our first point of interest is the requirement for pure function calls which have no side effects. Although it appears to be a reasonable requirement, the function actually need only be conditionally pure for the code section of interest for the inline. This appears to be a very difficult analysis, when even regular purity cannot be predicted in Rust. Much like the case in Java for JRRT \cite{schafer2010specification}, the issue of identification of these functions cannot be solved in Rust. Pure functions were part of the language definition earlier on in the development of Rust but due to difficulty in producing an exact definition, they were abandoned \cite{pwalton}. In Figure \ref{Fig:funcinline}, we can see how the inlining of a database call which might insert a single record will suddenly be repeated if it is inlined. Now an interesting question is the presence of constructors or factory methods. In some cases, where there is only a single usage the inline could be valid, but the code in the constructor might violate purity. When there are multiple usages, being immutable and overriding the correct equality operators may suffice for inlining over most situations, but requiring strict singletons might be necessary for others. In any case, constructors appear to be an additional level of difficulty much beyond the current level of analysis.
 
 \begin{fig}[H]
 \begin{verbatim}
@@ -107,9 +107,7 @@ This description is optimistic in that an invalid refactoring should fail, but i
 \label{Fig:funcinline}
 \end{fig}
 
-For Step 3, if there is exactly one usage of a local variable in an inline, then due to uniqueness constraints in Rust, there really is just a single usage without any aliases. This is unlike C++ for instance, where some other pointer could still refer to the same section of memory. The check for the right-hand side is to ensure that the variable was not being assigned some value. In general, mutating the value of a local variable that is about to be inlined is invalid since the inline converts a single long-lived state into transient ones [example?]. This reasoning applies exactly the same for steps 4 and 5, noting that interior mutability should be considered unsafe. The interior mutability might not be used and so, this is somewhat optimistic.
-
-Step 6 makes sure that if any variable composing the initializing expression has been redeclared with a new let binding, then the inline should not work. Rust is special here since it allows redeclaration of variables with the same names. Looking at Figure \ref{Fig:newlet} we can see how the inline of the variable a is incorrect due to the fact that b has been redeclared in the meantime. Now, this step is actually a superficial version of Step 2 which queries the `inner' mutability of the memory referred to by the variable. We find that the identification of mutable parts of an expression (Step 2) is practically impossible given the current Rust compiler implementation, but it is unknown if compiler work alone would be sufficient to remedy this issue or language tweaks would be required unless the actual work was carried out. In particular an `effect' system, or some form of recursive analysis of origin of memory appears to be required, but this is outside of the scope of this work.
+For Step 3, if there is exactly one usage of a local variable in an inline, then due to uniqueness constraints in Rust, there really is just a single usage without any aliases. This is unlike C++ for instance, where some other pointer could still refer to the same section of memory. The check for the right-hand side is to ensure that the variable was not being assigned some value. In general, mutating the value of a local variable that is about to be inlined is invalid since the inline converts a single long-lived state into transient ones. This reasoning applies exactly the same for steps 4 and 5, noting that interior mutability should be considered unsafe. The interior mutability may be unused and so, this is somewhat optimistic.
 
 \begin{fig}[H]
 \begin{verbatim}
@@ -121,6 +119,10 @@ Step 6 makes sure that if any variable composing the initializing expression has
 \caption{Inlining changes behaviour: Prints 6 instead of 3}
 \label{Fig:newlet}
 \end{fig}
+
+Step 6 makes sure that if any variable composing the initializing expression has been redeclared with a new let binding, then the inline should not work. Rust is special here since it allows redeclaration of variables with the same names. Looking at Figure \ref{Fig:newlet} we can see how the inline of the variable a is incorrect due to the fact that b has been redeclared in the meantime. Now, this step is actually a superficial version of Step 2 which queries the `inner' mutability of the memory referred to by the variable. We find that the identification of mutable parts of an expression (Step 2) is practically impossible given the current Rust compiler implementation, but it is unknown if compiler work alone would be sufficient to remedy this issue or language tweaks would be required unless the actual work was carried out. In particular an `effect' system \cite{effects}, or some form of recursive analysis of origin of memory appears to be required, but this is outside of the scope of this work.
+
+
 
 %In the multiple value case this all still applies, you have to make sure that the declared variable is not mutable, or if it is, it doesn't need the mutable. Now there is also the case of refcells and interior mutability. In the multiple case value, any direct aliases have a slightly different effect... copyable vs references. Must always follow the ownership system, so that anything that would've been valid before, has to be valid now e.g. no use of moved objects. 
 
@@ -161,15 +163,17 @@ The rules essentially boil down to the following:
 \end{enumerate}
 
 \begin{fig}
-\begin{verbatim}
-fn foo(x: &Debug)
-\end{verbatim}
+%\begin{verbatim}
+{\verb|fn foo(x: &Debug)|}\newline
+%\end{verbatim}
 becomes: {\verb|  fn foo<'a>(x: &|}
 {\color{red} \verb|'a|}{\verb| Debug)|}
 
-\begin{verbatim}
-fn foo(x: &Debug, y: &Debug)
-\end{verbatim}
+\vspace{4mm}
+
+%\begin{verbatim}
+{\verb|fn foo(x: &Debug, y: &Debug)|}\newline
+%\end{verbatim}
 becomes: {\verb|  fn foo<'a, 'b>(x: &|}
 {\color{red} \verb|'a|}{\verb| Debug, y: &|}{\color{red} \verb|'b|}{\verb| Debug)|}
 
@@ -178,15 +182,17 @@ becomes: {\verb|  fn foo<'a, 'b>(x: &|}
 \end{fig}
 
 \begin{fig}
-\begin{verbatim}
-fn foo(x: &Debug) -> &Point
-\end{verbatim}
+%\begin{verbatim}
+{\verb|fn foo(x: &Debug) -> &Point|}\newline
+%\end{verbatim}
 becomes: {\verb|fn foo<'a>(x: &|}
 {\color{red} \verb|'a|}{\verb| Debug) -> &|}{\color{blue}\verb|'a|}{\verb| Point|}
 
-\begin{verbatim}
-fn foo(&self) -> &Point
-\end{verbatim}
+\vspace{4mm}
+
+%\begin{verbatim}
+{\verb|fn foo(&self) -> &Point|}\newline
+%\end{verbatim}
 becomes: {\verb|fn foo<'a>(&|}
 {\color{green} \verb|'a|}{\verb| self) -> &|}{\color{blue}\verb|'a|}{\verb| Point|}
 
@@ -195,24 +201,28 @@ becomes: {\verb|fn foo<'a>(&|}
 \end{fig}
 
 \begin{fig}
-\begin{verbatim}
-fn foo(&self, x: &Debug) -> &Point
-\end{verbatim}
+%\begin{verbatim}
+{\verb|fn foo(&self, x: &Debug) -> &Point|}\newline
+%\end{verbatim}
 becomes: {\verb|fn foo<'a, 'b>(&|}
 {\color{green} \verb|'a|}{\verb| self, x: &|}{\color{red} \verb|'b|}{\verb| Debug) -> &|}{\color{blue}\verb|'a|}{\verb| Point|}
 
-\begin{verbatim}
-fn foo(x: &Debug, y: &Debug) -> &Point
-\end{verbatim}
+
+%\begin{verbatim}
+\vspace{4mm}
+{\verb|fn foo(x: &Debug, y: &Debug) -> &Point|}\newline
+%\end{verbatim}
 does not compile
 
 \caption{Examples of rule 3 and rule 4}
 \label{Fig:lifetimes}
 \end{fig}
 
-Now the idea is to build a tool to annotate these lifetimes where they have been omitted (reification) or to remove them where they are unnecessary due to compiler inference (elision). Despite being called the elision rules in the RFC (source?), they actually specify exactly what steps to take in order to reify, not elide. The rules describe basically how the compiler performs reification of missing lifetime parameters internally and so all a tool needs to do is follow the rules. In order to build an elide tool, the steps have to be taken in reverse [include a proof of reversal?]. 
+Now the idea is to build a tool to annotate these lifetimes where they have been omitted (reification) or to remove them where they are unnecessary due to compiler inference (elision). Despite being called the elision rules in the RFC \cite{elisionrules}, they actually specify exactly what steps to take in order to reify, not elide. The rules describe basically how the compiler performs reification of missing lifetime parameters internally and so all a tool needs to do is follow the rules. In order to build an elide tool, the steps have to be taken in reverse 
 
-Here is an list of constraints that will ensure that only valid elisions may occur (although will not allow all of them):
+%[include a proof of reversal?]. 
+
+Here is an list of constraints that will ensure that only valid elisions may occur (but not necessarily allowing all valid elisions):
 \begin{itemize}
 \item Do not elide if there are multiple output lifetimes
 \item Do not elide if the return is not parameterized by the function i.e. in the {\verb|<...>|}
@@ -222,7 +232,27 @@ Here is an list of constraints that will ensure that only valid elisions may occ
 \item Do not elide if there are bounds on a lifetime i.e. there are defined relationships between lifetimes, like 'a must live as long as 'b.
 \end{itemize}
 
-We can also note that the operations are not inverses of each other i.e. applying an elide after a reification will not necessarily return the original declaration. This is due to the ability to only partially annotate the expected lifetimes [example?].
+\subsection{Usefulness and motivations}
+As mentioned earlier, lifetimes follow standard patterns a significant proportion of the time. Considering no one has really thought about the automation of elision and reification (being a Rust specific behaviour), it is important to be clear here about the motivations in design. 
+
+For reification, we envision a developer who stumbles upon a piece of code involving lifetimes that they wish to change. The lifetimes were originally elided to reduce noise so that anybody using a function, for instance, could more easily grasp its underlying purpose. In modifying the code, the developer now wishes to visualize exactly which lifetimes are in use where. The developer could manually reinsert the lifetimes themselves, possibly erroneously or tediously when there are many lifetimes. Or they could use a tool for automating the reification of lifetimes.
+
+For elision, we envision a situation where a developer has a piece of code with all the lifetimes specified, where they were either provided from scratch while performing the implementation or by reification (ideally through a tool). The lifetimes make the code more verbose and harder to comprehend, especially to others, and so, the developer wishes to elide as many lifetimes as possible. This could be done manually, but allows the possibility of errors and missing some opportunities to remove a lifetime parameter. Or they could use a tool to automate the elision of lifetimes. 
+
+As you might see, the inclusion of both elision and reification in an automated refactoring tool is quite important since the use of reification might often imply the use of elision. Using the two together in this fashion, they might form a standard workflow and so pursuing these refactorings has been a point of interest.
+
+\subsection{Points of difficulties}
+Despite the general idea that elision and reification are complete opposites, the reality is not quite so simple. In particular, we note that the operations are not necessarily inverses of each other. This creates additional difficulty in defining constraints for validating elisions in attempting to reverse the elision rules. Part of the reason the two operations are not completely opposite is due to the ability to only partially annotate the expected lifetimes. In Figure \ref{Fig:partialrei}, we can see an example of a partial reification. If we were to apply elision on the result, there would be no lifetimes remaining and the partially specified lifetimes would no longer be present. This raises another question: if the existing lifetime was specified for a reason (to clarity some detail for instance), would we ever want to preserve the lifetime with the elision? While not considered here, it is an interesting design decision that remains consistent with the workflow specified earlier. 
+
+\begin{fig}
+{\verb|fn foo<'a>(x: &'a Debug, y: &Debug)|}\newline
+becomes: {\verb|fn foo<'a, 'b>(x: &'a Debug, y: &'b Debug)|}
+\caption{Partial reification -- \emph{'a} exists, \emph{'b} missing}
+\label{Fig:partialrei}
+\end{fig}
+
+
+
 
 While the only lifetime parameters seen here accompany an explicit borrow using `\&', they are not the only positions where a lifetime can occur. There is also the case where a trait might be boxed [show Nick's example].
 
@@ -277,7 +307,7 @@ The above describes a simple renaming of local variable `a' to `c'. The tool has
 \subsection{Name resolution for renaming}
 Given a node id, a new name, the save-analysis file and the crate root file, a rename refactoring then has enough information to begin. Loading in the csv analysis, there are two separate pieces of information that need to be identified: the declaration and the references. Once they are ascertained, we run the compiler API to invoke the compiler. Using name resolution within the compiler, we can attempt to resolve the new name at the declaration site in the AST to ensure that it does not cause any conflicts. By doing so, this would avoid same-block conflicts and prevent all super-block conflicts. Consequently, this also prevents a number of valid renamings where there is no eventual usage of the shadowed item. This issue is partially addressed in Section \ref{S:limit}. This check does not address the issue of sub-block conflicts, however. In order to do so would require name resolution to resolve the new name at each of the reference sites in the AST to ensure that it does not resolve to an undesired declaration. 
 
-Referring back to the conditions listed in Section \ref{S:br}, resolution at the declaration site for super-block and same-block conflicts forces usages binding to different declarations to remain binded to their different declaration. By addressing sub-block conflicts, at each renamed usage, name resolution would check the remaining condition that the binding was made only to the renamed declaration. In the ideal case, name resolution would run with both the declaration renamed and the usages renamed and within a single pass of the compiler.
+Referring back to the conditions listed in Section \ref{S:br}, resolution at the declaration site for super-block and same-block conflicts forces usages binding to different declarations to remain binded to their different declaration. By addressing sub-block conflicts, at each renamed usage, name resolution would check the remaining condition that the binding was made only to the renamed declaration. Ideally, name resolution would run with both the declaration renamed and the usages renamed and within a single pass of the compiler.
 
 Unfortunately, limitations imposed by the structure of name resolution and the internal representation mean that this is not possible. In order to provide functionality for detecting the missing sub-block conflicts, recompilation of the entire crate with a single use renamed is necessary. Of course this provides significant overhead, however, hopefully name resolution can provide the required functionality in the future. Apart from compilation, there does not appear to be any straightforward way to checking if a name already exists in the context for a usage. The full name resolution approach is one which appears to be adopted by gorename \cite{gorename15} and is much more efficient in general due to the fact that only one compiler run should be necessary to check every modification point. The additional choice of employing the full compilation approach for declarations indicates further complexities in providing a valid expression constructions (to test the presence of an existing name). A generic approach could not be used and so constructions of different forms for variables and variations of types and functions would be necessary -- which might not be compatible with simple ad-hoc replacement at the source code level.
 
@@ -329,14 +359,14 @@ fn main() {
 \section{Implementing inline-local}
 Following the description given in Section \ref{S:buildIL}, the implementation of inlining a local variable is relatively straightforward. This is especially the case when considering that Steps 1 and 2 listed are effectively impossible given the current language constraints as well the current compiler implementation.
 
-\subsection{Addressing steps 3 to 7}
+\subsection{Addressing Steps 3 to 7}
 In order to provide the functionality for the remaining steps, the compiler provided essentially all of the necessary constructs. By reappropriating the save-analysis module that typically outputs a CSV file that includes all the variable usages, the tool goes and counts the number of usages of the variable you are about the inline. This information is enough to satisfy Step 3.
 
 By using the node id that will be supplied to the tool at the beginning to identify which variable to inline, the tool can use the compiler to reconstruct the AST and determine all the mutability information. In order to get this information though, the tool needs to run the compiler to the end of the analysis phase which forms a significant proportion of the time spent compiling. This is required to check that a `mut' declaration was actually required and that the variable does not have interior mutability (satisfying Steps 4 and 5).
 
-To begin replacing the usages of the local variable with the initializing expression, the Rust compiler offers a useful `folder' trait which allows manipulation of the AST. This `folder' trait is used to expand or replace nodes in the tree and is how macros or syntactic sugar are generally handled in the compiler. The idea is to first walk the AST of the initializing replacement expression to determine which identifiers are being used to compose it. Then you walk the tree with the folder looking for any references to your local variable. If you find one, go through all the identifiers you found earlier and use name resolution to see if they resolve to their original declarations. If not, bail out of the refactoring. This satisfies Step 6.
+To replace the usages of the local variable with the initializing expression, the Rust compiler offers a useful `folder' trait which allows manipulation of the AST. This `folder' trait is used to expand or replace nodes in the tree and is how macros or syntactic sugar are generally handled in the compiler. The idea is to first walk the AST of the initializing replacement expression to determine which identifiers are being used to compose it. Then you walk the tree with the folder looking for any references to your local variable. If you find one, go through all the identifiers you found earlier and use name resolution to see if they resolve to their original declarations. If not, abort the refactoring. This satisfies Step 6.
 
-Step 7 is actually fairly trivial to implement because all that needs to be done is to add an additional check during the folding just described to remove the affected declaration nodes. From here, the tool uses the inbuilt pretty printer in the compiler to format the modified AST.
+Step 7 is actually fairly trivial to implement because all that needs to be done is to add an additional check during the folding just described to remove the affected declaration nodes. From here, the inbuilt pretty printer in the compiler is used to format the modified AST.
 
 \subsection{Concrete example with order of operations}
 [Insert an actual inlining example - with order of operations]
@@ -361,21 +391,21 @@ Instead of the using the pretty printer, we can perform the replacements one by 
 The general idea was to build the two operations based on the RFC as close as possible and use variations of the RFC examples to use as tests.
 
 \subsection{Reification}
-As Section XX described, implementation based on the RFC rules makes reify relatively straightforward. The reintroduction of lifetime parameters was based on the implementation of error reporting of missing lifetimes within the compiler. The original hope was that the compiler could simply output the reified function declarations, but it appeared that all that information is encoded in a different format (possibly for LLVM) and impossible to translate back to the AST. In general, this has been a recurring problem that after losing an abstraction level, it is impossible to raise it back up an abstraction level. Macros are another good example of this. While it is logical and useful for a compiler to perform these abstraction changes, for a tool, it is important to know which level to operate on, which steps are reversible and how your approach should be accomodated.
+As Section \ref{S:buildreielide} described, implementation based on the RFC rules makes reify relatively straightforward. The reintroduction of lifetime parameters was based on the implementation of error reporting of missing lifetimes within the compiler. The original hope was that the compiler could simply output the reified function declarations, but it appeared that all that information is encoded in a different format (possibly for LLVM) and impossible to translate back to the AST. In general, this has been a recurring problem that after losing an abstraction level, it is impossible to raise it back up an abstraction level. Macros are another good example of this. While it is logical and useful for a compiler to perform these abstraction changes, for a tool, it is important to know which level to operate on, which steps are reversible and how your approach should be accomodated.
 
 The idea in general is to count the amount of lifetimes in the various positions: in, out, as well as noting the position of self. The idea is to do a walk the AST, looking specifically at the lifetimes present within a function declaration. In order to rebuild the function declaration with the correct lifetimes using the lifetime error reporting system, a vector describing a partition of the parameters is necessary. The vector contains a list of the different equivalence classes of lifetimes. Once rebuilt, the pretty printer can be used to replace the old function declaration.
 
 \subsection{Elision}
 
-Compared to reify, elide was not quite so simple. The list of constraints identified were shown in Section XX which have not been completely implemented. In particular, the tool bails out in cases where a partial elision could still occur, like Figure XXX. Even the constraints themselves are quite conservative and more work can definitely be done to improve them, particularly with parameters with bounds. Again, the idea is to walk the AST, counting the amount of lifetimes in various positions or situations. If all the constraints are met, then we use a `folder' much like inline-local to fold away the unnecessary parameters and simply pretty print the result.
+Compared to reify, elide was not quite so simple. The list of constraints identified were shown in Section XX which have not been completely implemented. In particular, the tool bails out in cases where a partial elision could still occur, like Figure \ref{Fig:partial}. Even the constraints themselves are quite conservative and more work can definitely be done to improve them, particularly with parameters with bounds. Again, the idea is to walk the AST, counting the amount of lifetimes in various positions or situations. If all the constraints are met, then we use a `folder' much like inline-local to fold away the unnecessary parameters and simply pretty print the result.
 
-[example?]
-\begin{verbatim}
-fn foo<'a,'b>(x: &'a Debug, y: &'a Debug, z: &'b Debug)
-should become
-fn foo<'a>(x: &'a Debug, y: &'a Debug, z: &Debug)
-\end{verbatim}
-[Figure XXX]
+\begin{fig}
+{\verb|fn foo<'a,'b>(x: &'a Debug, y: &'a Debug, z: &'b Debug)|}\newline
+becomes: {\verb|fn foo<'a>(x: &'a Debug, y: &'a Debug, z: &Debug)|}
+\caption{Partial elision -- only 'b removed}
+\label{Fig:partial}
+\end{fig}
+
 
 \subsection{The missing Boxed cases}
 In terms of reification, it does not appear to be the case that the error reporting mechanism was designed to correctly identify these lifetime positions. This likely makes the current approach incompatible and require a more customized approach. One of the major advantages of using the error reporting mechanism was the ability to automatically allocate and detect missing lifetimes and without it, a good amount of work probably needs to be done.
@@ -383,5 +413,3 @@ In terms of reification, it does not appear to be the case that the error report
 Perhaps one of the most pressing reasons this case is not handled is due to the actual ambiguity of the RFC. This case does not even appear in any of the examples and despite the fact they should probably be interpreted as input lifetimes, it is not entirely apparent what this actually means. Certainly the interpretation of the rules are encoded in the actual compiler, it was not immediately apparent upon digging into the compiler source and possibly more subtle.
 
 ...
-%\subsection{Unsuccessful attempts at refactorings?}
-%\subsubsection{Lessons learnt}
