@@ -46,7 +46,7 @@ At the moment there exists several tests for const, static and normal local vari
 %While the ownership system in Rust prevents aliases for variables, a variable can be redeclared in the same scope or in a child scope. 
 
 \subsection{Methods and functions}
-At the moment there are several tests for renaming methods defined with a trait and/or overridden by a inheriting struct. Tests address both cases of static dispatch and dynamic dispatch, however the full combination of outputs for methods and functions is unknown due to the limitations in the csv file description and the reliance on the use of declname as opposed to a proper id for dynamically dispatched methods. One known failure mode of the refactoring tool is when a function (or trait) declared within a scope. Prevented renamings include those on dynamically dispatched methods, handled by the compiler runs on each usage.
+At the moment there are several tests for renaming methods defined with a trait and/or overridden by a inheriting struct. Tests address both cases of static dispatch and dynamic dispatch, however the full combination of outputs for methods and functions is unknown due to the limitations in the csv file description and the reliance on the use of declname as opposed to a proper id for dynamically dispatched methods. One known failure mode of the refactoring tool is when a function (or trait) declared within a scope. Prevented renamings include dynamically dispatched methods, handled by the compiler runs on each usage.
 
 \subsection{Concrete types - structs and enums}
 At the moment there are tests for both renaming of structs and enums with detection of namespace collisions (which are not in local scopes). The checking of namespace collisions also extend to the usage of `use' statements which allow a specific namespace to be added to the default and no need to additionally qualify some names. The renaming of concrete types does not extend to type aliases, or rather the extent to which the renamings function is still relatively unknown.
@@ -91,14 +91,12 @@ At least in regards to the situations identified, quite confident with reify bec
 
 %Correctness is probably not the real problem now that we can see how flawed the approach is.
 
-Elide is likely correct within the given constraints given. In most cases, it would outright fail if there is anything too complex. This has advantages and disadvantages of course. Because it only handles a subset, it is more likely to be correct. Compared with reify, elide has many more edge cases or cases that might be considered (it's the inverse of the four rules, which leaves a lot more exceptions).
-
-There is still the Boxed case which has not been completely addressed yet. How often it is used, and how useful the reification and elisions are, is unknown. Definitely one of the pitfalls of not having actual Rust users. 
+Elide is likely correct within the given constraints given. In most cases, it would outright fail if there is anything too complex. This has advantages and disadvantages of course. Because it only handles a subset, it is more likely to be correct. Compared with reify, elide has many more edge cases or cases that might be considered (it's the inverse of the four rules, which leaves a lot more exceptions). There is still the Boxed case which has not been completely addressed yet. How often it is used, and how useful the reification and elisions are, is unknown. Definitely one of the pitfalls of not having actual Rust users. 
 
 %pretty printer... with elide. trouble with using the pretty printer, but the function impl should not have any major issues (elimination of comments). calling full blown printer is not convenient at all...
 
-\section{Modularity of refactorings}
-TODO] The compiler is tightly coupled with the refactoring tool and compare this to the modular refactoring definitions definable by aspects [obliviousness and quantification, refer to paper] or the Scala refactoring tool... 
+%\section{Modularity of refactorings}
+%TODO] The compiler is tightly coupled with the refactoring tool and compare this to the modular refactoring definitions definable by aspects [obliviousness and quantification, refer to paper] or the Scala refactoring tool... 
 
 
 \section{Extent of refactorings}
@@ -132,7 +130,8 @@ Looking at what is necessary to invoke the refactoring tool we can determine a g
 
 Ideally, the flow of behaviour a user would want would be to simply identify the row and column and the refactoring to happen automatically. Not involving node id at all would be good, but this is necessary to adequately treat the tool as a library as opposed to a full fledged tool. Being able to easily identify row and column still requires some form of GUI tool and integration with such a tool would be desirable to reduce the amount of different parts required to perform a refactoring. Having to regnerate a csv file every time a refactoring has been made is definitely not desirable, although using the same csv file could only ever allow renamings to new names of the same length and renaming would have to occur on separate variables. Even though the compiler would probably generate the same AST with the same node ids (being deterministic) having different lengths in a new name would cause all the indexes into the code maps to be at the wrong offsets. Implementing some form of analysis cache could reduce user friction and reduce the amount of time spent compiling, but unless it managed all the changes in offsets correctly, as soon as a refactoring which significantly changed the output began, any existing analysis would still be out of date. Likely the best solution would be to correctly implement incremental compilation within the Rust compiler, which would allow less significant compile times and faster regeneration of analysis -- functioning basically like a cache. The lack of such behaviour is a shortcoming of the compiler and does appear to require significant structual changes but the benefits would extend further than just enabling better refactoring.
 
-Looking at the list given in the previous section on ideal steps for a refactoring tool, we can see that the tool we have built... There's no reason we cannot just plug it into an emacs plugin for instance, or build a simple GUI (although there is the question of building the FFI interfaces).
+%  that the tool we have built
+Looking at the list given in the Chapter \ref{C:wd} for the ideal steps for a refactoring tool, we can see we generally follows the guidelines. One point of distinction is the ability to generate patch files, but there is no reason this cannot be done (even externally from the current tool). The same argument applies for undo functionaltiy. As of right now, there's no reason we cannot just plug it into an emacs plugin for instance, or build a simple GUI (although the question of how robust and convenient Rust FFI interfaces are comes into play).
 
 % This could be done outside of the refactoring library, in a persisting background process but on the other hand,
 
