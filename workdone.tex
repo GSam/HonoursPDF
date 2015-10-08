@@ -178,7 +178,7 @@ becomes: {\verb|  fn foo<'a, 'b>(x: &|}
 {\color{red} \verb|'a|}{\verb| Debug, y: &|}{\color{red} \verb|'b|}{\verb| Debug)|}
 
 \caption{Examples of rule 1}
-\label{Fig:lifetimes}
+\label{Fig:lifetimes2}
 \end{fig}
 
 \begin{fig}
@@ -197,7 +197,7 @@ becomes: {\verb|fn foo<'a>(&|}
 {\color{green} \verb|'a|}{\verb| self) -> &|}{\color{blue}\verb|'a|}{\verb| Point|}
 
 \caption{Examples of rule 2}
-\label{Fig:lifetimes}
+\label{Fig:lifetimes3}
 \end{fig}
 
 \begin{fig}
@@ -215,7 +215,7 @@ becomes: {\verb|fn foo<'a, 'b>(&|}
 does not compile
 
 \caption{Examples of rule 3 and rule 4}
-\label{Fig:lifetimes}
+\label{Fig:lifetimes4}
 \end{fig}
 
 Now the idea is to build a tool to annotate these lifetimes where they have been omitted (reification) or to remove them where they are unnecessary due to compiler inference (elision). Despite being called the elision rules in the RFC \cite{elisionrules}, they actually specify exactly what steps to take in order to reify, not elide. The rules describe basically how the compiler performs reification of missing lifetime parameters internally and so all a tool needs to do is follow the rules. In order to build an elide tool, the steps have to be taken in reverse 
@@ -241,7 +241,7 @@ For elision, we envision a situation where a developer has a piece of code with 
 
 As you might see, the inclusion of both elision and reification in an automated refactoring tool is quite important since the use of reification might often imply the use of elision. Using the two together in this fashion, they might form a standard workflow and so pursuing these refactorings has been a point of interest.
 
-\subsection{Points of difficulties}
+\subsection{Points of difficulty}\label{S:pod}
 Despite the general idea that elision and reification are complete opposites, the reality is not quite so simple. In particular, we note that the operations are not necessarily inverses of each other. This creates additional difficulty in defining constraints for validating elisions in attempting to reverse the elision rules. Part of the reason the two operations are not completely opposite is due to the ability to only partially annotate the expected lifetimes. In Figure \ref{Fig:partialrei}, we can see an example of a partial reification. If we were to apply elision on the result, there would be no lifetimes remaining and the partially specified lifetimes would no longer be present. This raises another question: if the existing lifetime was specified for a reason (to clarity some detail for instance), would we ever want to preserve the lifetime with the elision? While not considered here, it is an interesting design decision that remains consistent with the workflow specified earlier. 
 
 \begin{fig}
@@ -252,24 +252,36 @@ becomes: {\verb|fn foo<'a, 'b>(x: &'a Debug, y: &'b Debug)|}
 \end{fig}
 
 
+While the only lifetime parameters seen here accompany an explicit borrow using `\&', they are not the only positions where a lifetime can occur. There is also the case where a trait might be boxed, or in rough terms wrapped by some pointer. In Figure \ref{Fig:boxedtrait}, we can see how a function declaration with a boxed trait is reified. While this appears to be known behaviour of the compiler, the RFC does not explicitly mention this case and the actual semantics of the behaviour is defined completely implicitly with the current compiler implementation. More to the point, the term `input position' in the RFC definition is still open to interpretation and it is unknown if there are any other cases which should have been considered here, but were not.
 
+\begin{fig}
+\begin{verbatim}
+trait SomeTrait<'a> {...}
+\end{verbatim}
+{\verb|fn foo(x: Box<SomeTrait>) -> &i8|}\newline
+reified to: {\verb|fn foo(x: Box<SomeTrait<'a>+'a>) -> &'a i8|}
+\caption{Reification of a boxed trait}
+\label{Fig:boxedtrait}
+\end{fig}
 
-While the only lifetime parameters seen here accompany an explicit borrow using `\&', they are not the only positions where a lifetime can occur. There is also the case where a trait might be boxed [show Nick's example].
 
 %One way of performing renaming is to use access construction. This assumes that we have a procedure to `construct an access', which when given a position and declaration, will bind to that declaration at that position. To rename, you first compute the declarations for every usage. You rename the declaration and then go through every name and construct an access which will bind to the declaration it bound to originally, replacing the original name. Using the process of constructing accesses, new names may have additional qualification, but will still yield a program with the same binding structure. Elide doesn't handle anything non-trivial, lifetime bounds, usage of a lifetime variable twice...
 
 \chapter{Implementation}\label{C:impl}
 
-In this chapter, details of the design are elaborated with greater detail on the technical specifics and Rust specific context. A number of the hurdles and difficulties in implementation arise from shortcomings in the compiler, but also due to specific design decisions in the compiler which led to exposure of Rust specific oddities. The tool itself is known to be compatible with 23.09.2015 Nightly build of the Rust compiler... [Not complete] In Section \ref{S:building}, the facilities for providing verification of renames are explored. In Section \ref{S:changes}, an overview of the changes required, predominantly in the compiler, are described. In Section \ref{S:limit}, a brief overview of some known limitations.
+In this chapter, details of the design are elaborated with greater detail on the technical specifics and Rust specific context. A number of the hurdles and difficulties in implementation arise from shortcomings in the compiler, but also due to specific design decisions in the compiler which led to exposure of Rust specific oddities. The tool itself is known to be compatible with 23.09.2015 Nightly build of the Rust compiler and is currently limited to running on Linux platforms. Sections \ref{S:iover}, \ref{S:begin} and \ref{S:entry} describe overall details. In Section \ref{S:building}, the facilities for providing verification of renames are explored and Section \ref{S:changes} describes an overview of the associated changes (which find usage in the other refactorings). Section \ref{S:ill} tackles inline-local and lastly, Section \ref{S:lifetimeref} tackles the lifetime refactorings.
 
 % Redeclarations made under the same scope
 % Every approach seems incredibly intrusive.
 
 % With API changing, one of the first to implement anything which interfaces in this particular manner.
 
-\section{Decisions made in the beginning}
+\section{Overview of the tool}\label{S:iover}
+With a compatible version of the compiler and a copy of the source code for the `rust-refactor' tool, running {\verb|cargo build|} will create the necessary binaries for running the tool. The tool is comprised of a library and a command-line frontend for demonstration. The tool takes as arguments: the type of refactoring, the save-analysis CSV, the crate root file, the node to affect and any additional parameters specific to the refactoring. More indepth detail can be found by running the actual command-line or inspecting the readme.
+
+\section{Decisions made in the beginning}\label{S:begin}
 \subsection{Choice of language}
-The choice of implementing the refactoring tool in Rust is for a number of reasons. Without a strong background in the language, performing even manual refactoring would likely be more difficult. The Rust compiler is a major component of the project and being able to modify the compiler and to understand the function of the compiler has been incredibly important. This is especially the case when documentation is not up to date and the level of support for some feature or API is unknown. It is also critical when there are bugs in the compiler that need to be fixed and extensions are required to facilitate refactoring. The tool itself could also be used to test its own source code. Lastly, a number of API and interoperability problems would likely be avoided and so limiting compiler interactions to Rust code appears to be a favourable idea. [Knowledge of Rust had to be built from the ground up, along with a number of completely unfamiliar language concepts.]
+The choice of implementing the refactoring tool in Rust is for a number of reasons. Without a strong background in the language, performing even manual refactoring would likely be more difficult. The Rust compiler is a major component of the project and being able to modify the compiler and to understand the function of the compiler has been incredibly important. This is especially the case when documentation is not up to date and the level of support for some feature or API is unknown. It is also critical when there are bugs in the compiler that need to be fixed and extensions are required to facilitate refactoring. The tool itself could also be used to test its own source code. Lastly, a number of API and interoperability problems would likely be avoided and so limiting compiler interactions to Rust code appears to be a favourable idea. Knowledge of Rust had to be built from the ground up, along with a number of completely unfamiliar language concepts.
 
 \subsection{Standalone binary vs library}
 While the tool is written in Rust, it also functions as a library and should allow for interoperability with any possible tool, GUI or otherwise. The choice of creating a library vs. a standalone tool or binary has created a number of arguments back and forth, but at the moment, the functionality remains provided by a library-type interface. There are reasons that this may not be ideal, for instance, the compiler driver API in Rust for calling the compiler functions primarily on disk. Doing so introduces a number of dependencies for the library and forces specific configurations for setting up the library, ones which would be made simpler with a single tool and no requirement for genericity. Additionally, in order to preserve state over a number of compile runs or to provide better caching, the library may be better off abandoning statelessness and run as a general, potentially background, program with a well defined API instead of a regular library. On the other hand, providing a library allows linking against arbitrary programs, and expectations of a library ensure that the aim of providing key interfaces to refactor code is fulfilled.
@@ -277,12 +289,14 @@ While the tool is written in Rust, it also functions as a library and should all
 % Error propogation system in terms of nesting, expectations on thread serialization
 % Throwing exceptions... no null types
 
-\section{Defining the entry point}
+\section{Defining the entry point}\label{S:entry}
 \subsection{Identification of affected nodes}
 In order to map a variable, function or type to the corresponding AST node, the save-analysis output must be provided. With the csv output, a user need only present a file line and column to determine the node id of the referenced element. Within the library, the csv is read every time this operation is required and will always perform a full scan of the file lines. While this could be avoided, there is still the fundamental issue of providing the save-analysis output as input to the tool, ensuring a full scan will always be necessary regardless. A binary search mechanism for code spans (or sections) could be particularly efficient for searching for a node, however this would still need some mechanism for long running updating of a code map to be effective. Furthermore it is unlikely that this operation presents any significant penalties compared to those encountered with the validity checking of a refactoring to be examined.
 
 \subsection{Simple command line}
-With the library, a simple command line tool has been provided to give a user interface for a refactoring to be identified and invoked. The command line tool takes any new names required for a refactoring and takes the original name and code location (typically a declaration) which may be denoted with row and column numbers in the form \textless{}name\textgreater{}:\textless{}row\textgreater{}:\textless{}col\textgreater{}. Row and column may be replaced with -1, as a wildcard, to intiate any refactoring valid for a matching name (where the expectation is that only one such name will be found). The tool also takes the operation that should be undergone (var, type or fn), the save-analysis file, the source file and with that, executes the refactoring, outputing the result to standard output.
+
+\begin{figure}[H]
+\centering
 
 \begin{verbatim}
 simple.rs file:
@@ -300,7 +314,16 @@ fn main() {
 }
 \end{verbatim}
 
-The above describes a simple renaming of local variable `a' to `c'. The tool has identified the corresponding node in the AST as having id 9 and has successfully carried out the renaming. If the tool fails, like when it finds a conflict, a simple error message `CONFLICT' is displayed.
+\caption{Simple renaming of local variable \emph{a} to \emph{c}}
+\label{Fig:cmdrename}
+\end{figure}
+
+
+With the library, a simple command line tool has been provided to give a user interface for a refactoring to be identified and invoked. The command line tool takes any new names required for a refactoring and takes the original name and code location (typically a declaration) which may be denoted with row and column numbers in the form \textless{}name\textgreater{}:\textless{}row\textgreater{}:\textless{}col\textgreater{}. Row and column may be replaced with -1, as a wildcard, to intiate any refactoring valid for a matching name (where the expectation is that only one such name will be found). The tool also takes the operation that should be undergone (var, type or fn), the save-analysis file, the source file and with that, executes the refactoring, outputing the result to standard output.
+
+
+
+Figure \ref{Fig:cmdrename} describes a simple renaming of local variable {\verb|a|} to {\verb|c|}. The tool has identified the corresponding node in the AST as having id 9 and has successfully carried out the renaming. If the tool fails, like when it finds a conflict, a simple error message `CONFLICT' is displayed.
 
 
 \section{Implementing renames with rustc}\label{S:building}
@@ -318,13 +341,13 @@ Adopting the compilation approach, each reference is renamed to the new name one
 In order to provide the necessary capabilities of name resolution, a number of modifications had to be made to the libresolve package within the Rust compiler. Name resolution occurs by walking the AST and resolving as it goes. As it proceeds through the AST, it maintains a list of ribs which correspond to lexical scopes and the various declarations made within them. By doing this, names defined within scopes can be checked, however unfortunately this means that libresolve and the associated resolve\_path call required for resolving a new name in the form of a path is not stateless. The module is built with resolution of an entire crate in mind and so every time a path resolution is required, the entire AST must be walked to find a single node. Compared to compilation, the cost should still not be significant, but there is still the challenge of stopping the walker (as part of the Visitor pattern) in the middle of a traversal. 
 
 \subsection{The lack of inheritance}
-Had Rust implemented simple, single inheritance, creation of a walker to terminate at a given node would be quite trivial. An obvious alternative would be to single copy-paste the name resolution walker and modify the functionality as per necessary. Unfortunately, even if the changes were accepted upstream, this demanded heavy modification to a number of interfaces and duplication of further code which relied on the name resolution walker as the only possible type of name resolution walker. Basically it was never built for a generic implementation. Inheritance is a proposed addition to Rust, however, little progress has been made, and there are a number of outstanding issues as to how it would fit in with the existing type system [source?].
+Had Rust implemented simple, single inheritance, creation of a walker to terminate at a given node would be quite trivial. An obvious alternative would be to single copy-paste the name resolution walker and modify the functionality as per necessary. Unfortunately, even if the changes were accepted upstream, this demanded heavy modification to a number of interfaces and duplication of further code which relied on the name resolution walker as the only possible type of name resolution walker. Basically it was never built for a generic implementation. Inheritance is a proposed addition to Rust, however, little progress has been made, and there are a number of outstanding issues as to how it would fit in with the existing type system \cite{inherit}.
 
 The second attempted approach was to attempt delegation to simulate the use of inheritance. Wrapping the outer API of the existing walker with a new walker is quite simple, however, reverting control back to the new walker is not so trivial as calls will normally just continue with the internal walker and not with the wrapped one. In some situations, refactoring of the code to force the walk\_X functions to occur at the end of each visit function would allow very little overall duplication of code, however if multiple walk\_X calls are made within a single function there is no simple solution without modification to the old walker. Even performing this proposed modification causes difficulty due to Rust and the mandatory requirement of ownership. In order to simulate inheritance, one approach would be to have the existing walker hold a field which contained a reference to either itself (for the default behaviour) or the new walker (for the new behaviour). Unfortunately, an object with a reference to itself under normal circumstances is quite difficult and prevented by the compiler due to move semantics. The ideal of one (modifying) reference to any object is broken with any cyclical or circular referencing. There are ways around this, otherwise Rust would suffer in flexibility, but most of them require planning ahead like the use of reference counting. The {\verb|RC<X>|} type is a reference counted pointer and solves any problems with creating circular graphs, however to use them for name resolution likely required conversion of the entire library.
 
 Accepting that reference counting would entail much more work, the last approach was to hand a callback to the resolver to invoke at every AST node. It functions generally for what is required but in terms of modifying without changes to original implementation, inheritance still appears to be the ideal approach (for the Visitor pattern).
 
-\subsection{resolve\_path termination and the issue of panics -- too much detail?}
+\subsection{resolve\_path termination and the issue of panics}
 Now with a callback, and identification of the correct node location, the question is: What to do now? Deeply nested in the AST tree, the callback cannot simply halt the walker and leave it in the correct state to query the local ribs for lexical scoping. It is possible to simply panic and the stack unwind can be caught, however, the unwind mechanism is not built for general message passing (and nesting these captures is not recommended). In particular, information that can be passed through the panic should be serializable and the implementation of the resolver is not compliant with that, requiring a number of changes.
 
 The resolution itself could be executed in the callback, however, the resolver now owns the callback and therefore makes it impossible to pass the resolver through as an argument of the callback due to the ownership system preventing two simultaneous mutable borrows. Therefore, this is not feasible under the current structure.
@@ -338,7 +361,8 @@ With the current setup, there are cases where a super-block conflict which shado
 \subsubsection{Macros}
 Macros do not appear at all in the csv save-analysis output. Due to the incomplete information supplied by save-analysis, it should probably be encouraged that conflicts should be raised as a precautionary measure whenever possible. This makes it so that forcing super-block conflicts unnecessarily might actually help prevent conflicts with unseen macros. An additional run could identify issues with macros, however referring back to Opdyke's 7th constraint, the main issue is with sub-block or super-block conflicts which cannot be detected with any usual means and do not cause compilation errors. Pretending to handle macros is likely worse than not promising anything at all and an extra compilation run is bound to occur eventually. The following example highlights the behaviour shift with macros which you can see with println! as a macro:
 
-
+\begin{figure}[H]
+\centering
 \begin{verbatim}
 simple.rs file:
 fn main() {
@@ -354,10 +378,11 @@ fn main() {
     println!("{}", a);
 }
 \end{verbatim}
+\caption{Macro failure -- no changes made}
+\end{figure}
 
-
-\section{Implementing inline-local}
-Following the description given in Section \ref{S:buildIL}, the implementation of inlining a local variable is relatively straightforward. This is especially the case when considering that Steps 1 and 2 listed are effectively impossible given the current language constraints as well the current compiler implementation.
+\section{Implementing inline-local}\label{S:ill}
+Following the description given in Section \ref{S:buildIL}, the feasible implementation of inlining a local variable is relatively straightforward. This is especially the case when considering that Steps 1 and 2 listed are effectively impossible given the current language constraints as well the current compiler implementation.
 
 \subsection{Addressing Steps 3 to 7}
 In order to provide the functionality for the remaining steps, the compiler provided essentially all of the necessary constructs. By reappropriating the save-analysis module that typically outputs a CSV file that includes all the variable usages, the tool goes and counts the number of usages of the variable you are about the inline. This information is enough to satisfy Step 3.
@@ -369,8 +394,11 @@ To replace the usages of the local variable with the initializing expression, th
 Step 7 is actually fairly trivial to implement because all that needs to be done is to add an additional check during the folding just described to remove the affected declaration nodes. From here, the inbuilt pretty printer in the compiler is used to format the modified AST.
 
 \subsection{Concrete example with order of operations}
-[Insert an actual inlining example - with order of operations]
+
+\begin{figure}[H]
+\centering
 \begin{verbatim}
+Input:
 fn main() {
     let a = 2 + 1;
     let _ = a * 2;
@@ -379,15 +407,19 @@ fn main() {
 Output:
 fn main() { let _ = (2 + 1) * 2; } // rather than 2 + 1 * 2
 \end{verbatim}
+\caption{Correct inlining with order of operations}
+\label{Fig:exinline}
+\end{figure}
 
-In Figure XX, you can see the inlining in action using the command line interface that was previously described. In particular, you can notice that the order of operations is preserved due to the fact that the pretty printer correctly identifies where parentheses are required. Without the pretty printer handling this case, the identified expression would evaluate to 4 instead of 6. Originally, this was not the behaviour given by the pretty printer, and only by contributing the patches upstream was this case (as well as other similar cases) correctly handled.
+%  inlining in action using the command line interface that was previously described
+In Figure \ref{Fig:exinline}, you can see the general result of running the tool on the given input. In particular, you can notice that the order of operations is preserved due to the fact that the pretty printer correctly identifies where parentheses are required. Without the pretty printer handling this case, the identified expression would evaluate to 4 instead of 6. Originally, this was not the behaviour given by the pretty printer, and only by contributing the patches upstream was this case (as well as other similar cases) correctly handled.
 
 \subsection{An alternative approach}
 In the original list of steps, there is no transformation between some abstract representation, like the AST, to concrete code. Using the pretty printer was a relatively straightforward choice since walking the AST was required for the checks in Step 6. By performing the replacements at this step, there would be no need to do any secondary walks and by pretty printing, there would be no need to determine and translate the locations in each file of the variable usages. There are some obvious disadvantages to using the pretty printer. One of them is bugs in the compiler, which was found to happen with parentheses. Another is the fact that the pretty printer and replacement operations function on the expanded AST, where macros no longer exist. Although the expanded code of the macro might compile and function just fine, there is the chance that it doesn't due to the syntax contexts distinguishing identifiers only within the compiler. Furthermore, the expanded code is often just ugly, which is why it was replaced with a simple macro.
 
-Instead of the using the pretty printer, we can perform the replacements one by one which requires all the location information for each of the usages to be recorded. The only caveat is the removal of the actual local variable declaration. This is because although we can delete the entire declaration, it may not be the case that we can remove the blank line left in its place without additional analysis. The fact that compatibility with macros has not been a strong point of the tool and the relative ease of implementation, both contributed to the decision to opt for the pretty printing approach.
+Instead of the using the pretty printer and pursuing the issue much like the Scala refactoring tool, we can perform the replacements one by one which requires all the location information for each of the usages to be recorded. The only caveat is the removal of the actual local variable declaration. This is because although we can delete the entire declaration, it may not be the case that we can remove the blank line left in its place without additional analysis. The fact that compatibility with macros has not been a strong point of the tool and the relative ease of implementation, both contributed to the decision to opt for the pretty printing approach.
 
-\section{Implementing reify and elide lifetimes}
+\section{Implementing reify and elide lifetimes}\label{S:lifetimeref}
 The general idea was to build the two operations based on the RFC as close as possible and use variations of the RFC examples to use as tests.
 
 \subsection{Reification}
@@ -407,9 +439,8 @@ becomes: {\verb|fn foo<'a>(x: &'a Debug, y: &'a Debug, z: &Debug)|}
 \end{fig}
 
 
-\subsection{The missing Boxed cases}
-In terms of reification, it does not appear to be the case that the error reporting mechanism was designed to correctly identify these lifetime positions. This likely makes the current approach incompatible and require a more customized approach. One of the major advantages of using the error reporting mechanism was the ability to automatically allocate and detect missing lifetimes and without it, a good amount of work probably needs to be done.
+\subsection{The missing boxed trait cases}
+Referring back to the issue identified in Section \ref{S:pod}, the current implementation is restricted to handling only explicit borrows with a preceding `\&'. In terms of reification, it does not appear to be the case that the error reporting mechanism was designed to correctly identify these lifetime positions. This likely makes the current approach incompatible to solving the issue in general, requiring a more customized approach. One of the major advantages of using the error reporting mechanism was the ability to automatically allocate and detect missing lifetimes and without it, work would need to be done to replicate and extend the functionality in the manner necessary. In terms of elision, there does not appear to be an issue with using the general `folder' approach for removing these lifetimes, however, the identification of whether or not removal is valid still appears problematic. In particular, this is due to RFC ambigiuity and the implicit definitions of what it means to be input or output positions.
 
-Perhaps one of the most pressing reasons this case is not handled is due to the actual ambiguity of the RFC. This case does not even appear in any of the examples and despite the fact they should probably be interpreted as input lifetimes, it is not entirely apparent what this actually means. Certainly the interpretation of the rules are encoded in the actual compiler, it was not immediately apparent upon digging into the compiler source and possibly more subtle.
 
-...
+

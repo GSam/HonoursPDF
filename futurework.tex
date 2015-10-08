@@ -1,15 +1,14 @@
 \chapter{Discussion}\label{C:future}
 
-REVERSAL OF ELIDE? 
-
-The work done so far serves as definite proof of the concept and the techniques or approaches used to build the refactoring tool. As explained by the evaluation, there is still significant work to be done to ensure that the tool serves practical use however.
+The work done so far serves as definite proof of the concept and the techniques or approaches used to build the refactoring tool. As explained by the evaluation, there is still work to be done to allow users to make the most out of the tool.
 
 % The scope of this additional work extends far beyond the time allocated and should serve as an adequate starting point for those looking to extend this work in the future. At this point the goal of this work is to address immediate shortcomings in the tool and to leave the more complicated refactoring and infrastructure changes for others (while providing useful commentary and insight). Lastly, with Rust being an open source project, there is the issue of upstreaming code and being mindful of the fact that the tool should follow as many coding conventions as possible.
 
 % DON'T FORGET to mention
 % Contribution is about a dozen commits to the main compiler repository: https://github.com/rust-lang/rust/commits/master?author=gsam
 
-\section{Multi-file projects}
+\section{Future work on this tool}
+\subsection{Multi-file projects}
 % START -- THIS WORK IS DONE
 %At the moment, the refactoring tool only supports single file Rust programs. This is severe limitation in the ability of the tool to function practically since many Rust modules or crates are divided up into multiple files and organized in terms of directories for better code organization. 
 
@@ -24,27 +23,29 @@ The work done so far serves as definite proof of the concept and the techniques 
 
 Although this feature is mostly implemented, an additional area of particular interest would be to investigate the overall effect of refactorings across multiple crates and how warnings should be presented when changes occur that might affect a public API. [Examining the evaluation, this appears to be a major shortcoming in how not only this tool functions, but how other tools function across codebases]. An investigation of Crates.io \cite{cratesio15}, the Rust package repository would likely yield interesting findings and in particular, identification of a description of the steps necessary to take when an API must change and how that should be dealt with from a community perspective. Looking at how the UNIX/Linux community deals with API or ABI changes in their open source software should also prove useful.
 
-\section{Testing}
-[Going forward, the refactoring tool needs significantly more testing to ensure that the current set of refactorings are correct. In this scenario testing has an even more important role, it is to ensure that the existing refactorings are not broken with further changes to the tool.] Furthermore, the refactoring tool evolves independently of the Rust compiler and changes to the compiler are likely to affect the inevitable outcome of the refactoring tool. Already, a number of existing bugs have been found and reintroducing them by accident does not appear to be difficult with current limitations in the amount of testing and documentation available for some areas of the compiler. With unstable API it is unsurprising and so in this manner, expanding testing does not necessarily need to be confined to the refactoring tool. At the moment, it has much less testing for multi-file. 
+\subsection{Testing}
+Going forward, the refactoring tool needs significantly more testing to ensure that the current set of refactorings are correct. In this scenario testing has an even more important role, it is to ensure that the existing refactorings are not broken with further changes to the tool. Furthermore, the refactoring tool evolves independently of the Rust compiler and changes to the compiler are likely to affect the inevitable outcome of the refactoring tool. Already, a number of existing bugs have been found and reintroducing them by accident does not appear to be difficult with current limitations in the amount of testing and documentation available for some areas of the compiler. With unstable API it is unsurprising and so in this manner, expanding testing does not necessarily need to be confined to the refactoring tool. 
 
+% At the moment, it has much less testing for multi-file. 
 % Tests should continue to be added for the remainder of the project to eliminate as many edge cases as possible.
 % With the existing drastic changes to the approach required to progress to this stage, it appears likely that such changes are to be expected. 
 
-With limited experience with Rust in general, using real-world code to attempt refactorings would help test for more obscure corner cases which may have been overlooked. Some initial testing with Crates.io \cite{cratesio15} has been done along with initial analysis of its efficiency and usefulness, but more should be done in the future. Furthermore, initial analysis of the effiency of the tool can be produced and speculations as to the usefulness. 
+With limited experience with Rust in general, using real-world code to attempt refactorings would help test for more obscure corner cases which may have been overlooked. Some initial testing with Crates.io \cite{cratesio15} has been done along with initial analysis of its efficiency and usefulness, but more should be done in the future. Furthermore, additional analysis of the effiency of the tool can be produced and speculations made in regards to its usefulness. 
 
 % MOVE TO EVALUATION -- The current testing programs are small and limited and by using real world code and by taking timing measurements, assessments can be made about how much faster the tool would be ideally.
 
-\section{Current test failures}
-As of right now, the test cases identify [X] incorrectly handled, but somewhat exceptional cases. A few of them, likely require the addition of further investigation as to the source of the error. On the other hand, a few of them are relatively subjective. For instance, crate relative names break their current qualifications (further explanation?). Function local definitions cause various issues... although they should be solved without too much effort. Elision, being only partially complete has some obvious holes. Furthermore, xxx.
+\subsection{Current test failures}
+As of right now, the test cases identify roughly 10 incorrectly handled, but somewhat exceptional cases. A few of them, likely require the addition of further investigation to determine the underlying source of the error. On the other hand, a few of them are relatively subjective, in that they could be solved by simply restricting the inputs to the tool. One less subjective issue is that function local definitions currently cause name resolution issues. They appear to be at least solvable within the current tool architecture though. Elision, being only partially complete, has holes which were noted in Chapter \ref{C:impl}.
+%  For instance, crate relative names break their current qualifications (further explanation?).  Furthermore, xxx.
 
-\section{Future refactorings}
+\subsection{Future refactorings}
 In terms of future refactorings, there are a number of next-step refactorings which should use most of the same infrastructure of the existing tool. For instance, struct fields or function arguments should function similarly to local variables and trait renaming should use most of the same conventions provided by concrete types like structs or enums. This is because of the output of save-analysis and the simplifications made in process of generating the csv output.
 
 %  A handful of these should be implemented relatively quickly, under a days work each, however ensuring testing is adequate should take longer. As a whole, as many as possible should be implemented to provide a more comprehensive tool, however due to their simplicity they should not be the highest priority.
 
 Renaming and modifying type aliases should also present interesting problems due to deviations from typical object-orientated languages, along with type parameters and associated types. Furthermore, as previously described, renaming types declared within some lexical scope or block introduce issues to do with path resolution that still need to be resolved. To do so requires determining which parts of the path are `private' to that scope and should not be used in the general case. The treatment of types in Rust definitely complicates matters, and this is already with the simplifications made from save-analysis.
 
-In the context of Rust, there are a number of refactorings which would be more unique. Extraction of a method, as described by Fowler, presents a number of intricacies tied with lifetimes and the ownership system in Rust. Ensuring borrows are made correctly as well as dealing with move semantics if a constructor is within the extracted section of code present difficulties relatively specific to Rust refactoring. While other refactoring changes are semantics preserving, extraction of a method could introduce new lifetimes and verification of correctness may not be so trivial. Similarly, extraction and inlining of local variables also appears to provide adequate difficulties with the ownership system and should be able to provide further insight into approaching method extraction.
+In the context of Rust, there are a number of refactorings which would be more unique. Extraction of a method, as described by Fowler, presents a number of intricacies tied with lifetimes and the ownership system in Rust. Ensuring borrows are made correctly as well as dealing with move semantics if a constructor is within the extracted section of code present difficulties relatively specific to Rust refactoring. While other refactoring changes are semantics preserving, extraction of a method could introduce new lifetimes and verification of correctness may not be so trivial. Similarly, extraction local variables also appears to provide adequate difficulties with the ownership system and should be able to provide further insight into approaching method extraction.
 
 % TO ADD: In terms of code extraction, one direction has been approached, but little to do with the opposite direction. 
 % TO ADD: Design of overall code is 
@@ -73,7 +74,17 @@ A non-comprehensive list of further refactorings that might be considered are:
 % Constructor to factory?
 % Unknown the extent to which refactoring works in unsafe code blocks
 
-\section{Additional compiler improvements}
+\section{Accuracy of timing tests}
+[TODO]
+
+\section{Subjectivity in refactoring}
+One of the reasons refactoring is not a straightforward topic is because of the different ways people might interpret a refactoring. In some domains or context, a perceivable behaviour violating change may not even matter. There are some cases where garnering feedback will offer a clear-cut decision, but there are likely cases that will not. Caring is important because even if a user dislikes the way code is pretty-printed, they might avoid a tool entirely. Offering choice always sounds good, but deciding what should be an error, or a warning is still no easy decision.
+
+\section{Missing formalisms}
+As raised throughout this report, lack of formalism is an ongoing problem in the area of refactoring. General progress in the field of refactoring appears quite slow, with many opting to simply produce implementations rather than tackling the problem at large. In terms of missing formalisms, refactoring is not the only one at blame it appears. Much in the same way, compilers encode otherwise undescribed aspects of programming languages. Rust is no different, and the case with the relatively informal elision RFC which was descriptive but definitely not complete was a reminder of this. Being well-defined likely would have allowed reversal of the elision rules with much more ease. This is not a reason to point blame, but to highlight the genuine scale and complexity of the projects and issues at hand. 
+
+\section{Associated areas of work or research}
+\subsection{Additional compiler improvements}
 % -Z save-analysis
 Given the current architecture of the tool, there are a number of further improvements that could be made to the compiler to improve its efficacy and efficiency. Using {\verb|-Zsave-analysis|} provides another additional step before a refactoring can be made. Furthermore, it must be generated every time a refactoring is to be undergone. By providing a library and API with which this information can be queried using the existing compiler API, the need for CSV parsing and associated unrelated complexity disappears. The actual performance offset of having to run the compiler again to generate this information does not disappear however.  By running all the way through to analysis, this still takes a significant amount of time. 
 
@@ -87,7 +98,7 @@ Helping to address performance in the compiler itself in the general case should
 
 Currently macros are completely ignored by the save-analysis report generated by the compiler. As it is, this appears to be a major shortcoming in the refactoring tool that has yet to be addressed. However, not a lot can be done at this point due to the general limitations regarding macros and how they are typically ignored when generating metadata from the compiler. Without being able to identify any spans associated with macros, it isn't possible to make the necessary code transformations. Implementing the necessary functionality is certainly non-trivial and likely requires much better domain knowledge than that which could be provided here. Knowing where to position to tool in terms of use of pretty printer vs using other approaches and the entire approach to the macro system needs to properly be addressed. 
 
-\section{Miscellaneous}
+\subsection{Miscellaneous}
 % Refactoring practical...
 
 %[TODO: perhaps move somewhere else]
