@@ -39,7 +39,7 @@ As of right now, the test cases identify roughly 10 incorrectly handled, but som
 %  For instance, crate relative names break their current qualifications (further explanation?).  Furthermore, xxx.
 
 \subsection{Future refactorings}
-In terms of future refactorings, there are a number of next-step refactorings which should use most of the same infrastructure of the existing tool. For instance, struct fields or function arguments should function similarly to local variables and trait renaming should use most of the same conventions provided by concrete types like structs or enums. This is because of the output of save-analysis and the simplifications made in process of generating the csv output.
+In terms of future refactorings, there are a number of next-step refactorings which should use most of the same infrastructure of the existing tool. For instance, trait renaming should use most of the same conventions provided by concrete types like structs or enums. This is because of the output of save-analysis and the simplifications made in process of generating the csv output.
 
 %  A handful of these should be implemented relatively quickly, under a days work each, however ensuring testing is adequate should take longer. As a whole, as many as possible should be implemented to provide a more comprehensive tool, however due to their simplicity they should not be the highest priority.
 
@@ -90,7 +90,7 @@ As raised throughout this report, lack of formalism is an ongoing problem in the
 %\section{Associated areas of work or research}
 \section{Additional compiler improvements}
 % -Z save-analysis
-Given the current architecture of the tool, there are a number of further improvements that could be made to the compiler to improve its efficacy and efficiency. Using {\verb|-Zsave-analysis|} provides another additional step before a refactoring can be made. Furthermore, it must be generated every time a refactoring is to be undergone. By providing a library and API with which this information can be queried using the existing compiler API, the need for CSV parsing and associated unrelated complexity disappears. The actual performance offset of having to run the compiler again to generate this information does not disappear however.  By running all the way through to analysis, this still takes a significant amount of time. 
+Given the current architecture of the tool, there are a number of further improvements that could be made to the compiler to improve its efficacy and efficiency. Using {\verb|-Zsave-analysis|} provides another additional step before a refactoring can be made. Furthermore, it must be generated every time a refactoring is to be undergone. By providing a library and API with which this information can be queried using the existing compiler API, the need for csv parsing and associated unrelated complexity disappears. The actual performance offset of having to run the compiler again to generate this information does not disappear however.  By running all the way through to analysis, this still takes a significant amount of time. 
 
 %[reference to compiler stages from earlier section]
 

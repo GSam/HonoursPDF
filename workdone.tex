@@ -280,7 +280,7 @@ In this chapter, details of the design are elaborated with greater detail on the
 % With API changing, one of the first to implement anything which interfaces in this particular manner.
 
 \section{Overview of the tool}\label{S:iover}
-With a compatible version of the compiler and a copy of the source code for the `rust-refactor' tool, running {\verb|cargo build|} will create the necessary binaries for running the tool. The tool is comprised of a library and a command-line frontend for demonstration. The tool takes as arguments: the type of refactoring, the save-analysis CSV, the crate root file, the node to affect and any additional parameters specific to the refactoring. More indepth detail can be found by running the actual command-line or inspecting the readme.
+With a compatible version of the compiler and a copy of the source code for the `rust-refactor' tool, running {\verb|cargo build|} will create the necessary binaries for running the tool. The tool is comprised of a library and a command-line frontend for demonstration. The tool takes as arguments: the type of refactoring, the save-analysis csv, the crate root file, the node to affect and any additional parameters specific to the refactoring. More indepth detail can be found by running the actual command-line or inspecting the readme.
 
 \section{Decisions made in the beginning}\label{S:begin}
 \subsection{Choice of language}
@@ -388,7 +388,7 @@ fn main() {
 Following the description given in Section \ref{S:buildIL}, the feasible implementation of inlining a local variable is relatively straightforward. This is especially the case when considering that Steps 1 and 2 listed are effectively impossible given the current language constraints as well the current compiler implementation.
 
 \subsection{Addressing Steps 3 to 7}
-In order to provide the functionality for the remaining steps, the compiler provided essentially all of the necessary constructs. By reappropriating the save-analysis module that typically outputs a CSV file that includes all the variable usages, the tool goes and counts the number of usages of the variable you are about the inline. This information is enough to satisfy Step 3.
+In order to provide the functionality for the remaining steps, the compiler provided essentially all of the necessary constructs. By reappropriating the save-analysis module that typically outputs a csv file that includes all the variable usages, the tool goes and counts the number of usages of the variable you are about the inline. This information is enough to satisfy Step 3.
 
 By using the node id that will be supplied to the tool at the beginning to identify which variable to inline, the tool can use the compiler to reconstruct the AST and determine all the mutability information. In order to get this information though, the tool needs to run the compiler to the end of the analysis phase which forms a significant proportion of the time spent compiling. This is required to check that a `mut' declaration was actually required and that the variable does not have interior mutability (satisfying Steps 4 and 5).
 
