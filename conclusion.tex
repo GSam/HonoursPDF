@@ -1,18 +1,18 @@
 \chapter{Conclusion}\label{C:con}
 % Documentation of API is necessary.
-This work has explored refactoring and providing tool-support within the context of the Rust programming language. Utilizing existing infrastructure provided by the compiler, this work identifies extensions which help faciliate common automated refactorings. In a more general sense, this work attempts to build upon existing work done on refactoring by documenting specific decisions made in building a refactoring tool (which might only encoded in the source code of an actual tool), and attempting to analyze the decisions made by others.
+This work has explored refactoring and providing tool-support within the context of the Rust programming language. Utilizing existing infrastructure provided by the compiler, this work identifies extensions which help facilitate common automated refactorings. In a more general sense, this work attempts to build upon existing work done on refactoring by documenting specific decisions made in building a refactoring tool (which might only encoded in the source code of an actual tool), and attempting to analyze the decisions made by others.
 
 % Rust provides some unique obstacles in providing automated refactorings...
 
-At the moment the provided tool supports renaming of local and global variables, fields, function arguments, structs, enum and functions. Beyond renaming, it also allows reification and elision of lifetime parameters for functions and methods and has preliminary support for inlining of local variables. However the complete limitations of these refactorings are not yet fully known, but there exists a current suite of tests to ensure that there are no obvious flaws in the approach. The presence of bugs in the compiler is a real problem to generality, but without real world use and more contribution to testing, finding these corner cases appears to be difficult.
+At the moment the provided tool supports renaming of local and global variables, fields, function arguments, structs, enum and functions. Beyond renaming, it also allows reification and elision of lifetime parameters for functions and methods and has preliminary support for inlining of local variables. However, the complete limitations of these refactorings are not yet fully known, but there exists a current suite of tests to ensure that there are no obvious flaws in the approach. The presence of bugs in the compiler is a real problem to generality, but without real world use and more contribution to testing, finding these corner cases appears to be difficult.
 
 At the moment, Rust lacks significant refactoring tool-support and evidently requires more work particularly within the compiler to enable further, valuable progress. Although a preliminary tool has been provided, there are many avenues for continuing work and the hope is that this first investigation provides useful insight for future efforts. Understanding the required context and the necessary infrastructure has been a major part of this work, and continuation should allow greater focus on implementing a more difficult and comprehensive set of refactorings for Rust.
 
-\chapter*{Appendix}\label{C:appen}
+\chapter{Appendix}\label{C:appen}
 \section{Performance data}
 
 \subsection{Relative crate sizes}
-Figure \ref{Fig:codesize} lists the four crates from Crates.io that have been chosen to help evaluate the produced tool. The listed crates form four of the top five most downloaded crates by the Rust community \cite{cratesio15}. The `winapi' crate was omitted due to less relevance on a Linux platform. A fifth crate `bitflags' was originally going to be used for analysis, however macro incompatibility made this an impossible task. The lines of code metric only concerns Rust source (.rs) files and does not take into account comments or test code. The purpose of the comparison is only to generate a rough, high level contrast and to gather any overall insights. 
+Figure \ref{Fig:codesize} lists the four crates from Crates.io that have been chosen to help evaluate the produced tool. The listed crates form four of the top five most downloaded crates by the Rust community \cite{cratesio15}. The `winapi' crate was omitted due to less relevance on a Linux platform. A fifth crate `bitflags' was originally going to be used for analysis; however macro incompatibility made this an impossible task. The lines of code metric only concerns Rust source (.rs) files and does not take into account comments or test code. The purpose of the comparison is only to generate a rough, high level contrast and to gather any overall insights. 
 
 \begin{figure}[H]
 \begin{center}
@@ -103,6 +103,16 @@ The classes of refactorings measured are: renaming variables (or variable-like c
 \label{Fig:log}
 \end{figure}
 
+\begin{figure}[H]
+\begin{center}
+\scalebox{0.8}{
+\includegraphics{refactorings}
+}
+\caption{Graph displaying results of the different refactorings}
+\label{Fig:compareref}
+\end{center}
+\end{figure}
+
 \subsection{Scalability of renames}
 Since the renamings should follow the same general pattern inside the tool, exploring variation with a single type of renaming on a single crate should show the general relationship. In particular, libc was chosen for having a wider variety of occurrence counts specifically with concrete types. Other crates or types of renamings had few examples and only a limited amount of variation.
 
@@ -112,7 +122,10 @@ Since the renamings should follow the same general pattern inside the tool, expl
     \hline
     \textbf{Number of replaced occurrences} & \textbf{Time in seconds} \\ \hline
     1 type usage &  0.192517137  \\ \hline
+    3 type usages &  0.382087255  \\ \hline
     4 type usages &   0.474888942  \\ \hline
+    6 type usages &   0.673731962  \\ \hline
+    8 type usages &   0.873888499 \\ \hline
     13 type usages  &  1.372581328 \\ \hline
     29 type usages &  2.960479041  \\ \hline
     51 type usages &  5.059021681 \\ \hline
@@ -121,4 +134,14 @@ Since the renamings should follow the same general pattern inside the tool, expl
 
 \caption{Timings for varying usage counts of concrete types in libc}
 \label{Fig:scaling}
+\end{figure}
+
+\begin{figure}[H]
+\begin{center}
+\scalebox{0.8}{
+\includegraphics{scaling}
+}
+\caption{Graph displaying results of varying the number of usages}
+\label{Fig:comparerefs}
+\end{center}
 \end{figure}
