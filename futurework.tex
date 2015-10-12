@@ -62,9 +62,13 @@ Converting functions to methods or vice versa is also a critical function that w
 A non-comprehensive list of further refactorings that might be considered are:
 \begin{itemize}
 \item Inlining methods
+\itemsep0em 
 \item Creating or inlining modules
+\itemsep0em 
 \item Adding or removing arguments to functions
+\itemsep0em 
 \item Extracting traits or moving inherited to trait
+\itemsep0em 
 \item Changing types to type aliases
 \end{itemize}
 
@@ -81,24 +85,24 @@ A non-comprehensive list of further refactorings that might be considered are:
 One of the reasons refactoring is not a straightforward topic is because of the different ways people might interpret a refactoring. In some domains or context, a perceivable behaviour violating change may not even matter. There are some cases where garnering feedback will offer a clear-cut decision, but there are likely cases that will not. Caring is important because even if a user dislikes the way code is pretty-printed, they might avoid a tool entirely. Offering choice always sounds good, but deciding what should be an error, or a warning is still no easy decision.
 
 \section{Missing formalisms}
-As raised throughout this report, lack of formalism is an ongoing problem in the area of refactoring. General progress in the field of refactoring appears quite slow, with many opting to simply produce implementations rather than tackling the problem at large. In terms of missing formalisms, refactoring is not the only one at blame it appears. Much in the same way, compilers encode otherwise undescribed aspects of programming languages. Rust is no different, and the case with the relatively informal elision RFC which was descriptive but definitely not complete was a reminder of this. Being well-defined likely would have allowed reversal of the elision rules with much more ease. This is not a reason to point blame, but to highlight the genuine scale and complexity of the projects and issues at hand. 
+As raised throughout this report, lack of formalism is an ongoing problem in the area of refactoring. General progress in the field of refactoring appears quite slow, with many opting to simply produce implementations rather than tackling the problem at large. In terms of missing formalisms, refactoring is not the only one at blame it appears. Much in the same way, compilers encode otherwise undescribed aspects of programming languages. Rust is no different, and the case with the relatively informal elision RFC (which was descriptive but definitely not complete) was a reminder of this. Being well-defined likely would have allowed reversal of the elision rules with much more ease. This is not a reason to point blame, but to highlight the genuine scale and complexity of the projects and issues at hand. 
 
-\section{Associated areas of work or research}
-\subsection{Additional compiler improvements}
+%\section{Associated areas of work or research}
+\section{Additional compiler improvements}
 % -Z save-analysis
 Given the current architecture of the tool, there are a number of further improvements that could be made to the compiler to improve its efficacy and efficiency. Using {\verb|-Zsave-analysis|} provides another additional step before a refactoring can be made. Furthermore, it must be generated every time a refactoring is to be undergone. By providing a library and API with which this information can be queried using the existing compiler API, the need for CSV parsing and associated unrelated complexity disappears. The actual performance offset of having to run the compiler again to generate this information does not disappear however.  By running all the way through to analysis, this still takes a significant amount of time. 
 
 %[reference to compiler stages from earlier section]
 
 %  Compiler speed-up + Name resolution at the lowest level
-Helping to address performance in the compiler itself in the general case should also help to improve performance of the refactoring tool. However, based on the current design of the tool and the need for multiple runs with modified source, the issue of performance would be better addressed by improvements to the name resolution module in the Rust compiler. In particular, providing name resolution for usages instead of just at the declaration level would turn O(N) runs of the compiler into O(1) runs by using name resolution multiple times in a single run. Fundamentally this requires heavy changes to the structure of the compiler and the nature of name resolution. As it currently is, not every node gets its individual node id in nested expressions and to resolve this requires significantly more memory usage or novel, significant and well-architected changes, well beyond the scope of this project.
+Helping to address performance in the compiler itself in the general case should also help to improve performance of the refactoring tool. However, based on the current design of the tool and the need for multiple runs with modified source, the issue of performance would be better addressed by improvements to the name resolution module in the Rust compiler. In particular, providing name resolution for usages instead of just at the declaration level would turn O(N) runs of the compiler into O(1) by using name resolution multiple times in a single run. Fundamentally this requires heavy changes to the structure of the compiler and the nature of name resolution. As it currently is, not every node gets its individual node id in nested expressions and to resolve this requires significantly more memory usage or novel, significant and well-architected changes, well beyond the scope of this project.
 
 % Macro hygiene with types
 % Renaming within macros - seems like a big problem
 
-Currently macros are completely ignored by the save-analysis report generated by the compiler. As it is, this appears to be a major shortcoming in the refactoring tool that has yet to be addressed. However, not a lot can be done at this point due to the general limitations regarding macros and how they are typically ignored when generating metadata from the compiler. Without being able to identify any spans associated with macros, it isn't possible to make the necessary code transformations. Implementing the necessary functionality is certainly non-trivial and likely requires much better domain knowledge than that which could be provided here. Knowing where to position to tool in terms of use of pretty printer vs using other approaches and the entire approach to the macro system needs to properly be addressed. 
+Currently macros are completely ignored by the save-analysis report generated by the compiler. As it is, this appears to be a major shortcoming in the refactoring tool that has yet to be addressed. However, not a lot can be done at this point due to the general limitations regarding macros and how they are typically ignored when generating metadata from the compiler. Without being able to identify any spans associated with macros, it isn't possible to make the necessary code transformations. Implementing the necessary functionality is certainly non-trivial and likely requires much better domain knowledge than that which could be provided here. Resolving this would also fix pretty printer abstraction layer issues.
 
-\subsection{Miscellaneous}
+\section{Miscellaneous}
 % Refactoring practical...
 
 %[TODO: perhaps move somewhere else]
