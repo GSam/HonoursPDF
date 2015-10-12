@@ -7,3 +7,118 @@ This work has explored refactoring and providing tool-support within the context
 At the moment the provided tool supports renaming of local and global variables, fields, function arguments, structs, enum and functions. Beyond renaming, it also allows reification and elision of lifetime parameters for functions and methods and has preliminary support for inlining of local variables. However the complete limitations of these refactorings are not yet fully known, but there exists a current suite of tests to ensure that there are no obvious flaws in the approach. The presence of bugs in the compiler is a real problem to generality, but without real world use and more contribution to testing, finding these corner cases appears to be difficult.
 
 At the moment, Rust lacks significant refactoring tool-support and evidently requires more work particularly within the compiler to enable further, valuable progress. Although a preliminary tool has been provided, there are many avenues for continuing work and the hope is that this first investigation provides useful insight for future efforts. Understanding the required context and the necessary infrastructure has been a major part of this work, and continuation should allow greater focus on implementing a more difficult and comprehensive set of refactorings for Rust.
+
+\chapter*{Appendix}\label{C:appen}
+\section{Performance data}
+
+\subsection{Relative crate sizes}
+Figure \ref{Fig:codesize} lists the four crates from Crates.io that have been chosen to help evaluate the produced tool. The listed crates form four of the top five most downloaded crates by the Rust community \cite{cratesio15}. The `winapi' crate was omitted due to less relevance on a Linux platform. A fifth crate `bitflags' was originally going to be used for analysis, however macro incompatibility made this an impossible task. The lines of code metric only concerns Rust source (.rs) files and does not take into account comments or test code. The purpose of the comparison is only to generate a rough, high level contrast and to gather any overall insights. 
+
+\begin{figure}[H]
+\begin{center}
+    \begin{tabular}{ | l | c |}
+    \hline
+    \textbf{Rust crate} & \textbf{Lines of code} \\ \hline
+    libc & 6547 \\ \hline
+    rustc-serialize &  5741 \\ \hline
+    rand &   5187 \\ \hline
+    log &  1449 \\ \hline
+    \end{tabular}
+\end{center}
+
+\caption{General figure for the relative size of crates compared}
+\label{Fig:codesize}
+\end{figure}
+
+\subsection{Timings for the different refactorings}
+Timings were generated for the different crates using the Linux perf tool: {\verb|perf stat -r 10|} Timings were averaged over 10 runs and use of the perf tool gave much less unaccountable variations in results compared to other tools such as {\verb|time|}. The machine used was a dual core 2.0 GHz virtual machine running Ubuntu 12.04 with Rust Nightly 23.09.2015 (along with the latest version of the refactoring tool). Timings represent elapsed time, not system time or CPU time.
+
+The classes of refactorings measured are: renaming variables (or variable-like constructs), renaming functions (or methods), renaming concrete types, reification and elision. Inline local has been omitted due to lack of sufficient examples in the given crates. In each case, examples were picked with effectively a single usage so that the difference in timings between each of the individual refactorings could be highlighted. 
+
+\begin{figure}[H]
+\begin{center}
+    \begin{tabular}{ | l | c |}
+    \hline
+    \textbf{Refactoring} & \textbf{Time in seconds} \\ \hline
+    Single variable usage & 0.279296164 \\ \hline
+    Single function usage &  0.282359402  \\ \hline
+    Single concrete type usage  &  0.192517137 \\ \hline
+    Reify function &  0.181052082 \\ \hline
+    Elide function &  0.256281695 \\ \hline
+    \end{tabular}
+\end{center}
+
+\caption{Timings for libc}
+\label{Fig:libc}
+\end{figure}
+
+\begin{figure}[H]
+\begin{center}
+    \begin{tabular}{ | l | c |}
+    \hline
+    \textbf{Refactoring} & \textbf{Time in seconds} \\ \hline
+    Single variable usage &  1.190142460 \\ \hline
+    Single function usage &  1.765529977  \\ \hline
+    Single concrete type usage  &  1.291176595 \\ \hline
+    Reify function &  0.961171871  \\ \hline
+    Elide function &  0.948008818 \\ \hline
+    \end{tabular}
+\end{center}
+
+\caption{Timings for rustc-serialize}
+\label{Fig:rustc-serialize}
+\end{figure}
+
+\begin{figure}[H]
+\begin{center}
+    \begin{tabular}{ | l | c |}
+    \hline
+    \textbf{Refactoring} & \textbf{Time in seconds} \\ \hline
+    Single variable usage &  0.527383479 \\ \hline
+    Single function usage &  0.755735400 \\ \hline
+    Single concrete type usage  & 0.555294948 \\ \hline
+    Reify function &   0.358056910 \\ \hline
+    Elide function & 0.460453089 \\ \hline
+    \end{tabular}
+\end{center}
+
+\caption{Timings for rand}
+\label{Fig:rand}
+\end{figure}
+
+\begin{figure}[H]
+\begin{center}
+    \begin{tabular}{ | l | c |}
+    \hline
+    \textbf{Refactoring} & \textbf{Time in seconds} \\ \hline
+    Single variable usage &  0.381467818  \\ \hline
+    Single function usage &   0.402882117  \\ \hline
+    Single concrete type usage  &  0.363789533 \\ \hline
+    Reify function &   0.317281525 \\ \hline
+    Elide function &  0.324042647 \\ \hline
+    \end{tabular}
+\end{center}
+
+\caption{Timings for log}
+\label{Fig:log}
+\end{figure}
+
+\subsection{Scalability of renames}
+Since the renamings should follow the same general pattern inside the tool, exploring variation with a single type of renaming on a single crate should show the general relationship. In particular, libc was chosen for having a wider variety of occurrence counts specifically with concrete types. Other crates or types of renamings had few examples and only a limited amount of variation.
+
+\begin{figure}[H]
+\begin{center}
+    \begin{tabular}{ | l | c |}
+    \hline
+    \textbf{Number of replaced occurrences} & \textbf{Time in seconds} \\ \hline
+    1 type usage &  0.192517137  \\ \hline
+    4 type usages &   0.474888942  \\ \hline
+    13 type usages  &  1.372581328 \\ \hline
+    29 type usages &  2.960479041  \\ \hline
+    51 type usages &  5.059021681 \\ \hline
+    \end{tabular}
+\end{center}
+
+\caption{Timings for varying usage counts of concrete types in libc}
+\label{Fig:scaling}
+\end{figure}
