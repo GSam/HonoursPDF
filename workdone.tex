@@ -73,7 +73,7 @@ When performing a renaming, there are two main operations that need to be perfor
 
 %\subsection{Access construction}
 
-All of this information can be found in the save-analysis data; however, it is completely static and simplified. In order to be able to perform these operations in the general case, the compiler has to be run again. For a refactoring to succeed, all names in a refactored program must bind to the same declaration as the original program \cite{schafer2010specification}. All original uses should be updated to bind to the renamed declaration and any other usages binding to a different declaration, remain binded to a different declaration.
+All of this information can be found in the save-analysis data; however, it is completely static and simplified. In order to be able to perform these operations in the general case, the compiler has to be run again. For a refactoring to succeed, all names in a refactored program must bind to the same declaration as the original program \cite{schafer2010specification}. All original uses should be updated to bind to the renamed declaration and any other usages binding to a different declaration, remain binded to a different declaration. Section \ref{S:building} describes more detail on how this might be implemented and a much more detailed analysis regarding access constructions can be found in the dissertation on JRRT \cite{schafer2010specification}.
 
 \section{Building inline-local}\label{S:buildIL}
 Of the available literature, it appears that the authors of the JRRT describe the act of inlining a variable in the most specific detail. At the time, they also note the existing scarcity of indepth documentation for specific refactorings \cite{schafer2010specification}. Working with Java in particular, they note that due to the limitations of Java, it is impossible to absolutely ensure 100\% correctness under even common circumstances. In this section, a description as best as possible within the context of Rust will be shown and how despite promising additional guarantees such as mutability, absolute correctness is still quite out of reach.
@@ -280,7 +280,7 @@ In this chapter, details of the design are elaborated with greater detail on the
 % With API changing, one of the first to implement anything which interfaces in this particular manner.
 
 \section{Overview of the tool}\label{S:iover}
-With a compatible version of the compiler and a copy of the source code for the `rust-refactor' tool, running {\verb|cargo build|} will create the necessary binaries for running the tool. The tool is comprised of a library and a command-line frontend for demonstration. The tool takes as arguments: the type of refactoring, the save-analysis csv, the crate root file, the node to affect and any additional parameters specific to the refactoring. More indepth detail can be found by running the actual command-line or inspecting the readme.
+With a compatible version of the compiler and a copy of the source code\footnote{A Git repository is available at: \url{https://github.com/GSam/rust-refactor}} for the `rust-refactor' tool, running {\verb|cargo build|} will create the necessary binaries for running the tool. The tool is comprised of a library and a command-line frontend for demonstration. The tool takes as arguments: the type of refactoring, the save-analysis csv, the crate root file, the node to affect and any additional parameters specific to the refactoring. More indepth detail can be found by running the actual command-line or inspecting the readme.
 
 \section{Decisions made in the beginning}\label{S:begin}
 \subsection{Choice of language}
@@ -326,7 +326,7 @@ With the library, a simple command line tool has been provided to give a user in
 
 
 
-Figure \ref{Fig:cmdrename} describes a simple renaming of local variable {\verb|a|} to {\verb|c|}. The tool has identified the corresponding node in the AST as having id 9 and has successfully carried out the renaming. If the tool fails, like when it finds a conflict, a simple error message `CONFLICT' is displayed.
+Figure \ref{Fig:cmdrename} describes a simple renaming of local variable {\verb|a|} to {\verb|c|}. The tool has identified the corresponding node in the AST as having id 9 and has successfully carried out the renaming. If the tool fails, e.g. finds a conflict, a simple error message `CONFLICT' is displayed.
 
 
 \section{Implementing renames with rustc}\label{S:building}
@@ -362,7 +362,7 @@ The remaining solution is to simply flag the resolver as complete and detecting 
 With the current setup, there are cases where a super-block conflict which shadows nothing, or has no usages, may still be counted as a conflict. There are a few advantages of preventing redeclaration under the same name, one of which is that instead of checking every usage of every name, you only need to check the usages for the name that has been renamed. In the full compiler scenario, this is particularly bad and slow. The reason such checking is unnecessary is due to the fact that outsider usages suddenly binding to your new declaration is impossible -- the declaration is never shadowing anything.
 
 \subsubsection{Macros}
-Macros do not appear at all in the csv save-analysis output. Due to the incomplete information supplied by save-analysis, it should probably be encouraged that conflicts should be raised as a precautionary measure whenever possible. This makes it so that forcing super-block conflicts unnecessarily might actually help prevent conflicts with unseen macros. An additional run could identify issues with macros, however referring back to Opdyke's 7th constraint, the main issue is with sub-block or super-block conflicts which cannot be detected with any usual means and do not cause compilation errors. Pretending to handle macros is likely worse than not promising anything at all and an extra compilation run is bound to occur eventually. The following example highlights the behaviour shift with macros which you can see with println! as a macro:
+Macros do not appear at all in the csv save-analysis output. Due to the incomplete information supplied by save-analysis, it should probably be encouraged that conflicts should be raised as a precautionary measure whenever possible. This makes it so that forcing super-block conflicts unnecessarily might actually help prevent conflicts with unseen macros. An additional run could identify issues with macros, however referring back to Opdyke's 7th constraint, the main issue is with sub-block or super-block conflicts which cannot be detected with any usual means and do not cause compilation errors. Pretending to handle macros is likely worse than not promising anything at all and an extra compilation run is bound to occur eventually. The following example highlights the behaviour shift with macros, which you can see with println! as a macro:
 
 \begin{figure}[H]
 \centering
