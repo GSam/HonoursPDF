@@ -129,19 +129,154 @@ Looking at the list given in the Chapter \ref{C:wd} for the ideal steps for a re
 % This could be done outside of the refactoring library, in a persisting background process but on the other hand,
 
 \section{Performance evaluation -- Analyzing time taken}\label{S:perfeval}
-With only single file tests, the amount of time spent performing each refactoring is quite negligible. Compilation times for single files, especially of fairly trivial programs do not provide sufficient evidence of practical timings for performing a refactoring. Therefore the choice was made to investigate some real world code from the Crates.io, Rust package repository \cite{cratesio15}. Ranked as the most popular, four crates were used: libc, rustc-serialize, rand and log. Tables and graphs are found in the Appendix and all values are averages of 10 runs.
+With only single file tests, the amount of time spent performing each refactoring is quite negligible. Compilation times for single files, particularly trivial programs do not provide sufficient evidence of practical timings for performing a refactoring. Therefore the choice was made to investigate real world code from the Crates.io, Rust package repository \cite{cratesio15}. 
 
+\subsection{Relative crate sizes}
+Figure \ref{Fig:codesize} lists the four crates from Crates.io that have been chosen to help evaluate the produced tool. The listed crates form four of the top five most downloaded crates by the Rust community \cite{cratesio15}. The `winapi' crate was omitted due to less relevance on a Linux platform. A fifth crate `bitflags' was originally going to be used for analysis; however macro incompatibility made this an impossible task. The lines of code metric only concerns Rust source (.rs) files and does not take into account comments or test code. The purpose of the comparison is only to generate a rough, high level contrast and to gather any overall insights. 
+
+\begin{figure}[H]
+\begin{center}
+    \begin{tabular}{ | l | c |}
+    \hline
+    \textbf{Rust crate} & \textbf{Lines of code} \\ \hline
+    libc & 6547 \\ \hline
+    rustc-serialize &  5741 \\ \hline
+    rand &   5187 \\ \hline
+    log &  1449 \\ \hline
+    \end{tabular}
+\end{center}
+
+\caption{General figure for the relative size of crates compared}
+\label{Fig:codesize}
+\end{figure}
 %On the other hand, the number of runs is still proportional to the number of usages but this is a direct consequence of the current limitations of the name resolution API
 %Typically, the main consumption of compile time is with the analysis phase and generation of LLVM code. 
 
 
 \subsection{Comparing the timings between the types of refactorings}
-Examples were picked where only single usages existed for the different refactorings. Figure \ref{Fig:compareref} shows how regardless of refactoring, the time taken is generally comparable within a crate. Looking at Figure \ref{Fig:codesize}, the blind code size metric does not appear to be a good indicator of the base refactoring time and so comparisons between crates are limited. In general, the complexity of a crate is not necessarily tied to crate size e.g. `libc' being mostly header declarations. Function renaming takes noticeably longer while lifetime refactorings are noticeably shorter. This base refactoring time is likely linked to the basic compile time and how at worst, we need the analysis information to check the validity of a refactoring. While a rename refactoring requires checking every usage of a declared item using the compiler, in the `happy path' every usage should fail the compiler check during the early stages of parsing or name resolution. Only in more unlikely or unfortunate cases will a refactoring require any additional processing in analysis. This likely makes the renamings comparable. 
+Timings were generated for the different crates using the Linux perf tool: {\verb|perf stat -r 10|} Timings were averaged over 10 runs and use of the perf tool gave much less unaccountable variations in results compared to other tools such as {\verb|time|}. The machine used was a dual core 2.0 GHz virtual machine running Ubuntu 12.04 with Rust Nightly 23.09.2015 (along with the latest version of the refactoring tool). The tool was compiled in release mode (not debug) which ensures increased speed, by at least 10 times based on observation. Timings represent elapsed time, not system time or CPU time.
 
-Inlining was omitted from this analysis due to the difficulty of finding suitable examples, particularly without mutation.
+The classes of refactorings measured are: renaming variables (or variable-like constructs), renaming functions (or methods), renaming concrete types, reification and elision. Inline local has been omitted due to lack of sufficient examples in the given crates, particularly without mutation. In each case, examples were picked with effectively a single usage, access or equivalent (with minimal modifications made) so that the difference in timings between each of the individual refactorings could be highlighted. Figure \ref{Fig:compareref} shows how regardless of refactoring, the time taken is generally comparable within a crate. Looking at Figure \ref{Fig:codesize}, the blind code size metric does not appear to be a good indicator of the base refactoring time and so comparisons between crates are limited. In general, the complexity of a crate is not necessarily tied to crate size e.g. `libc' being mostly header declarations. Although we have some spread in crate size for this analysis, this could likely be improved. Function renaming takes noticeably longer while lifetime refactorings are noticeably shorter. This base refactoring time is likely linked to the basic compile time and how at worst, we need the analysis information to check the validity of a refactoring. While a rename refactoring requires checking every usage of a declared item using the compiler, in the `happy path' every usage should fail the compiler check during the early stages of parsing or name resolution. Only in more unlikely or unfortunate cases will a refactoring require any additional processing in analysis. This likely makes the different renamings relatively comparable. 
+
+
+\begin{figure}[H]
+\centering
+\begin{minipage}{.5\textwidth}
+  \begin{center}
+    \begin{tabular}{ | l | c |}
+    \hline
+    \textbf{Refactoring} & \textbf{Time (sec)} \\ \hline
+    Single variable usage & 0.2793 \\ \hline
+    Single function usage &  0.2824  \\ \hline
+    Single concrete type usage  &  0.1925 \\ \hline
+    Reify function &  0.1811 \\ \hline
+    Elide function &  0.2563 \\ \hline
+    \end{tabular}
+\end{center}
+
+\caption{Timings for libc}
+\label{Fig:libc}
+\end{minipage}%
+\begin{minipage}{.5\textwidth}
+\begin{center}
+    \begin{tabular}{ | l | c |}
+    \hline
+    \textbf{Refactoring} & \textbf{Time (sec)} \\ \hline
+    Single variable usage &  1.190 \\ \hline
+    Single function usage &  1.766  \\ \hline
+    Single concrete type usage  &  1.291 \\ \hline
+    Reify function &  0.9612  \\ \hline
+    Elide function &  0.9480 \\ \hline
+    \end{tabular}
+\end{center}
+
+\caption{Timings for rustc-serialize}
+\label{Fig:rustc-serialize}
+\end{minipage}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\begin{minipage}{.5\textwidth}
+  \begin{center}
+    \begin{tabular}{ | l | c |}
+    \hline
+    \textbf{Refactoring} & \textbf{Time (sec)} \\ \hline
+    Single variable usage &  0.5274 \\ \hline
+    Single function usage &  0.7557 \\ \hline
+    Single concrete type usage  & 0.5553 \\ \hline
+    Reify function &   0.3581 \\ \hline
+    Elide function & 0.4605 \\ \hline
+    \end{tabular}
+\end{center}
+
+\caption{Timings for rand}
+\label{Fig:rand}
+\end{minipage}%
+\begin{minipage}{.5\textwidth}
+\begin{center}
+    \begin{tabular}{ | l | c |}
+    \hline
+    \textbf{Refactoring} & \textbf{Time (sec)} \\ \hline
+    Single variable usage &  0.3815  \\ \hline
+    Single function usage &   0.4029  \\ \hline
+    Single concrete type usage  &  0.3638 \\ \hline
+    Reify function &   0.3173 \\ \hline
+    Elide function &  0.3240 \\ \hline
+    \end{tabular}
+\end{center}
+
+\caption{Timings for log}
+\label{Fig:log}
+\end{minipage}
+\end{figure}
+
+\begin{figure}[H]
+\begin{center}
+\scalebox{0.8}{
+\includegraphics{refactorings}
+}
+\caption{Graph displaying results of the different refactorings}
+\label{Fig:compareref}
+\end{center}
+\end{figure}
 
 \subsection{Varying the number of refactoring locations or usages}
-From `libc', a number of different concrete types were targeted for performing a rename. Figure \ref{Fig:comparerefs} shows how concrete type renaming appears to scale linearly (as expected from Chapter \ref{C:impl}) with the number of usages. Ideally, this would have been done with other refactorings, but finding a reasonable amount of variation on the number of usages was difficult and searching was mostly manual. All the rename refactorings generally follow similar code paths and so the idea is that they should all scale in the same way. In particular, investigating function renaming would have been insightful as they take inherently more time. As for the lifetime refactorings, the selection for the earlier timings did not heavily consider the number of visible `\&' and from observation, the time they took did not generally vary significantly. This is probably because they do not use additional passes of the compiler.
+From `libc', a number of different concrete types were targeted for performing a rename. `libc' was chosen for having a wider variety of occurrence counts specifically with concrete types. Figure \ref{Fig:comparerefs} shows how concrete type renaming appears to scale linearly (as expected from Chapter \ref{C:impl}) with the number of usages. Ideally, this analysis would have been done with other refactorings, but finding a reasonable amount of variation on the number of usages was difficult and searching was mostly manual. All the rename refactorings generally follow similar code paths and so the idea is that they should all scale in the same way (with the same general relationship). In particular, investigating function renaming would have been insightful as they take inherently more time. As for the lifetime refactorings, the selection for the earlier timings did not strongly consider the number of visible `\&' and from observation, the time they took did not generally vary significantly. This is probably because they do not use additional passes of the compiler.
+
+%In particular, Other crates or types of renamings had few examples and only a limited amount of variation.
+
+\begin{figure}[H]
+\begin{center}
+    \begin{tabular}{ | l | c |}
+    \hline
+    \textbf{Number of replaced occurrences} & \textbf{Time in seconds} \\ \hline
+    1 type usage &  0.1925  \\ \hline
+    3 type usages &  0.3821  \\ \hline
+    4 type usages &   0.4749  \\ \hline
+    6 type usages &   0.6737  \\ \hline
+    8 type usages &   0.8739 \\ \hline
+    13 type usages  &  1.373 \\ \hline
+    29 type usages &  2.960  \\ \hline
+    51 type usages &  5.059 \\ \hline
+    \end{tabular}
+\end{center}
+
+\caption{Timings for varying usage counts of concrete types in libc}
+\label{Fig:scaling}
+\end{figure}
+
+\begin{figure}[H]
+\begin{center}
+\scalebox{0.8}{
+\includegraphics{scaling}
+}
+\caption{Graph displaying results of varying the number of usages}
+\label{Fig:comparerefs}
+\end{center}
+\end{figure}
+
+
 
 Rust generally encourages the use of Crates.io and package management to form modular systems. This means that the amount of code implemented by your personally is as minimal as possible, making scalability potentially a non-issue. On the other hand, more modular systems mean more API and shared functions, types etc. While this might not affect performance it affects the overall difficulty of refactoring because once an API is exposed, it is usually not liable to change. Changes across different code-bases are problematic, not just for Rust, but for programmers in general (due to different owners, licenses, etc.).
 
