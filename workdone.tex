@@ -126,8 +126,18 @@ Step 6 makes sure that if any variable composing the initializing expression has
 
 %In the multiple value case this all still applies, you have to make sure that the declared variable is not mutable, or if it is, it doesn't need the mutable. Now there is also the case of refcells and interior mutability. In the multiple case value, any direct aliases have a slightly different effect... copyable vs references. Must always follow the ownership system, so that anything that would've been valid before, has to be valid now e.g. no use of moved objects. 
 
-%\subsection{A remaining caveat}
-% The assumption is that the inline will still have some kind of meaning. For the case of lifetimes, this is not always the case. In Figure X we can see the inlining of a vector. The problem with the resulting code is that when calling {\verb|iter()|} on the vector, vector must be disposed of. This is a violation of lifetimes. Besides running through all analysis again, it is not immediately clear how this case should be handled or whether or not it can be resolved in a much simpler way. 
+\subsection{A remaining caveat}
+There is one other edge case without mention yet. In Figure \ref{Fig:inlinefail} we can see the inlining of a vector. The problem with the resulting code is that despite calling {\verb|iter()|} on the inlined vector, the vector should be disposed. As a local variable, a valid borrow normally occurs, but without it, the iterator has no proper parent and causes a violation of lifetimes. Besides running through compilation (analysis) again, it is unclear how this case should be handled or if they can be resolved in a simpler way. As such, no further considerations are made.
+
+\begin{fig}[H]
+\begin{verbatim}
+    let v = vec![1, 2];                // a has been inlined
+    // i is an iterator                // i is an iterator     
+    let i = v.iter();                  let i = vec![1, 2].iter();
+\end{verbatim}
+\caption{Inlining causes compilation error: borrowed value does not live long enough}
+\label{Fig:inlinefail}
+\end{fig}
 
 \section{Building reify and elide lifetimes}\label{S:buildreielide}
 Although the concepts of lifetimes and ownership are not trivial, the effect of reification and elision is actually quite simple and relatively easy to understand. In Figure \ref{Fig:lifetimes}, we can see input lifetimes marked in red or green for a number of function declarations. Green lifetimes belong to the self parameter (much like Python for object orientation or less similarly equivalent to `this' in Java). Output lifetimes are marked in blue which appear in the return type. The elision rules in Rust essentially describe which lifetime will be inferred if you forget to explicitly annotate them. They follow common patterns so that in most cases, you will never need to include any lifetime parameters in your function declarations. If no pattern is matched, then those lifetimes cannot be omitted. In the below figure, none of these lifetimes are actually needed.
