@@ -88,19 +88,18 @@ Formal foundations for refactoring in general appears incredibly weak as raised 
 % In particular, both positive and negative cases have been considered, along with as many edge cases as could be possibly thought of. 
 %  The compiler is still quite unstable, although it has finally reached release status, even amongst the six months or so working on this tool, many API have changed under my feet. 
 
-Where possible, informal arguments have been given as to how different refactorings work, but to address any shortcomings, the a major focus has been on implementing test cases for each of the individual refactorings. While unit testing would provide more assurance that the code written is correct, a major part of the underlying code is actually in the compiler and the refactoring tool has to trust the correctness of this external code. To continue to write unit tests in the compiler was an option, but one that would likely be less effective in ensuring validity of the actual refactorings implemented. 
+Where possible, informal arguments have been given as to how different refactorings work, but to address any shortcomings, the a major focus has been on implementing test cases for each of the individual refactorings. While unit testing would provide more assurance that the code written is correct, a major part of the underlying code is actually in the compiler and the refactoring tool has to trust the correctness of this external code. To continue to write unit tests in the compiler was an option, but one that would likely be less effective in ensuring validity of the actual refactorings implemented. Certainly this project has succeeded in its goal of a proof of concept, but the end goal should be real world testers utilizing this code to identify issues that genuinely cause people problems.
 
 %predominantly with the testing currently supplied and without a large number of real world testers utilizing this code, it is hard to gauge the correctness of the code in general.
 %Given the project time constraints, again, test cases appeared to be the most effective way to ensure correctness.
-
 %Massive complexities, that just can't be nailed down. 
 
 \section{Extent of refactorings}\label{S:extentn}
 %Given only refactorings concerning renaming have been tackled, the scope of the investigation is still severely limited. 
 
-The refactorings tackled predominantly concern renaming, however, the addition of local variable inlining and lifetime elision and reification has allowed for a greater view of refactorings in Rust. In terms of the categories of refactorings mentioned by Fowler et al., only the very surface of method composition and simplifcation have been covered, but this project's underlying nature has meant notable differences and distinctions. However, renaming does form one of the primary atomic units within a refactoring and should allow composition.
+The refactorings tackled predominantly concern renaming, however, the addition of local variable inlining and lifetime elision and reification has allowed for a greater view of refactorings in Rust. In terms of the categories of refactorings mentioned by Fowler et al., only the very surface of method composition and simplifcation have been covered, but this project's underlying nature has meant notable differences and distinctions. Fielding user suggestions should provide helpful future feedback, but for now the approaches now have some weight and renamings form one of the basic units within a refactoring, allowing composition.
 
- Also, without general users of the tool, the analysis of practicality lacks depth, but again, the refactoring tool has been mostly designed as a proof-of-concept.
+% Also, without general users of the tool, the analysis of practicality lacks depth, but again, the refactoring tool has been mostly designed as a proof-of-concept.
 
 
 %[On the other hand, we have renaming which forms one of the primary atomic units within a refactoring and allows composition.]
@@ -111,45 +110,42 @@ Looking at what is necessary to invoke the refactoring tool we can determine a g
 
 \begin{enumerate}
 \item Compile a program with {\verb|-Zsave-analysis|} to produce a csv analysis file.
+\itemsep0em 
 \item Either inspect the csv manually or run the refactoring library to determine the node id of the element you wish you alter.
+\itemsep0em 
 \item Run the refactoring tool, choosing your desired refactoring. With a rename, the new name must be supplied, the node id and optionally, the file.
+\itemsep0em 
 \item Wait for the refactoring to occur and the compiler to run all the proper checks. 
+\itemsep0em 
 \item Process the result and save the result to disk, if desired.
+\itemsep0em 
 \end{enumerate}
 
 Ideally, the flow of behaviour a user would want would be to simply identify the row and column and the refactoring to happen automatically. Not involving node id at all would be good, but this is necessary to adequately treat the tool as a library as opposed to a full fledged tool. Being able to easily identify row and column still requires some form of GUI tool and integration with such a tool would be desirable to reduce the amount of different parts required to perform a refactoring. Having to regnerate a csv file every time a refactoring has been made is definitely not desirable, although using the same csv file could only ever allow renamings to new names of the same length and renaming would have to occur on separate variables. Even though the compiler would probably generate the same AST with the same node ids (being deterministic) having different lengths in a new name would cause all the indexes into the code maps to be at the wrong offsets. Implementing some form of analysis cache could reduce user friction and reduce the amount of time spent compiling, but unless it managed all the changes in offsets correctly, as soon as a refactoring which significantly changed the output began, any existing analysis would still be out of date. Likely the best solution would be to correctly implement incremental compilation within the Rust compiler, which would allow less significant compile times and faster regeneration of analysis -- functioning basically like a cache. The lack of such behaviour is a shortcoming of the compiler and does appear to require significant structual changes but the benefits would extend further than just enabling better refactoring.
 
 %  that the tool we have built
-Looking at the list given in the Chapter \ref{C:wd} for the ideal steps for a refactoring tool, we can see we generally follows the guidelines. One point of distinction is the ability to generate patch files, but there is no reason this cannot be done (even externally from the current tool). The same argument applies for undo functionaltiy. As of right now, there is no reason to think that we cannot just plug it into an Emacs plugin for instance, or build a simple GUI (although how robust and convenient Rust FFI is now comes into play).
+Looking at the list given in the Chapter \ref{C:wd} for the ideal steps for a refactoring tool, we can see we generally follows the guidelines. One point of distinction is the ability to generate patch files, but there is no reason this cannot be done (even externally from the current tool). The same argument applies for undo functionaltiy. As of right now, there is no reason to think that we cannot just plug our library into an Emacs plugin for instance, or build a simple GUI (although how robust and convenient Rust FFI is, now comes into play).
 
 % This could be done outside of the refactoring library, in a persisting background process but on the other hand,
 
 \section{Performance evaluation -- Analyzing time taken}\label{S:perfeval}
-With only single file tests, the amount of time spent performing each refactoring is quite negligible. Compilation times for single files, especially of fairly trivial programs do not provide sufficient evidence of practical timings for performing a refactoring.
+With only single file tests, the amount of time spent performing each refactoring is quite negligible. Compilation times for single files, especially of fairly trivial programs do not provide sufficient evidence of practical timings for performing a refactoring. Therefore the choice was made to investigate some real world code from the Crates.io, Rust package repository \cite{cratesio15}. Ranked as the most popular, four crates were used: libc, rustc-serialize, rand and log. Tables and graphs are found in the Appendix and all values are averages of 10 runs.
 
-Typically, the main consumption of compile time is with the analysis phase and generation of LLVM code. Within the refactoring tool, in all cases, the generation of LLVM code is avoided since only source code modifications are being performed and the analysis phase provides more than enough information for validity of a refactoring. While a rename refactoring requires checking every usage of a declared item using the compiler, in the `happy path' every usage should fail the compiler check during the early stages of parsing or name resolution. Only in more unlikely or unfortunate cases will a refactoring require any additional processing in analysis. In this regard, the compiler approach likely is not as bad as first theorized. On the other hand, the number of runs is still proportional to the number of usages but this is a direct consequence of the current limitations of the name resolution API.
-
-\subsection{Time taken for a refactoring within a moderate-sized crate}
-This should be a reasonable test for some metric of the effectiveness of the tool...
-
-Things to compare against, the amount of usages for renamings, comparing the different renamings for speed differences, the time taken to reach analysis vs overall compilation times. 
-%I have some examples, but I think Nick should know best what crates might be decent to test with.
-In particular, the crates that will be tested are essentially the top 5 most used crates on Crates.io. These are: 
+%On the other hand, the number of runs is still proportional to the number of usages but this is a direct consequence of the current limitations of the name resolution API
+%Typically, the main consumption of compile time is with the analysis phase and generation of LLVM code. 
 
 
+\subsection{Comparing the timings between the types of refactorings}
+Examples were picked where only single usages existed for the different refactorings. Figure \ref{Fig:compareref} shows how regardless of refactoring, the time taken is generally comparable within a crate. Looking at Figure \ref{Fig:codesize}, the blind code size metric does not appear to be a good indicator of the base refactoring time and so comparisons between crates are limited. In general, the complexity of a crate is not necessarily tied to crate size e.g. `libc' being mostly header declarations. Function renaming takes noticeably longer while lifetime refactorings are noticeably shorter. This base refactoring time is likely linked to the basic compile time and how at worst, we need the analysis information to check the validity of a refactoring. While a rename refactoring requires checking every usage of a declared item using the compiler, in the `happy path' every usage should fail the compiler check during the early stages of parsing or name resolution. Only in more unlikely or unfortunate cases will a refactoring require any additional processing in analysis. This likely makes the renamings comparable. 
 
-Performance - how well does it perform as different aspects change:
+Inlining was omitted from this analysis due to the difficulty of finding suitable examples, particularly without mutation.
 
-1. Size of codebase
+\subsection{Varying the number of refactoring locations or usages}
+From `libc', a number of different concrete types were targeted for performing a rename. Figure \ref{Fig:comparerefs} shows how concrete type renaming appears to scale linearly (as expected from Chapter \ref{C:impl}) with the number of usages. Ideally, this would have been done with other refactorings, but finding a reasonable amount of variation on the number of usages was difficult and searching was mostly manual. All the rename refactorings generally follow similar code paths and so the idea is that they should all scale in the same way. In particular, investigating function renaming would have been insightful as they take inherently more time. As for the lifetime refactorings, the selection for the earlier timings did not heavily consider the number of visible `\&' and from observation, the time they took did not generally vary significantly. This is probably because they do not use additional passes of the compiler.
 
-2. Number of refactoring locations - particularly for renaming + inlining
+Rust generally encourages the use of Crates.io and package management to form modular systems. This means that the amount of code implemented by your personally is as minimal as possible, making scalability potentially a non-issue. On the other hand, more modular systems mean more API and shared functions, types etc. While this might not affect performance it affects the overall difficulty of refactoring because once an API is exposed, it is usually not liable to change. Changes across different code-bases are problematic, not just for Rust, but for programmers in general (due to different owners, licenses, etc.).
 
-3. Type of renaming
 
-Offsets to negative performance:
-The appearance of modular systems, Rust encouraging use of Crates.io and package management. Object-orientation as opposed to other paradigms? On the other hand, more modular systems mean more API and shared functions, types etc. This doesn't necessarily make a refactoring easier because once an API is exposed, it is usually not liable to change (cite Josh Bloch perhaps). Cross code-base changes are problematic, not just for Rust, but for programmers in general.
-
-Description of testing machine and testing process - averaging of how many runs... 
 
 
 \section{Other potential methods of evaluation} \label{S:otherstuff}

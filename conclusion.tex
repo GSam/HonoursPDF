@@ -31,9 +31,9 @@ Figure \ref{Fig:codesize} lists the four crates from Crates.io that have been ch
 \end{figure}
 
 \subsection{Timings for the different refactorings}
-Timings were generated for the different crates using the Linux perf tool: {\verb|perf stat -r 10|} Timings were averaged over 10 runs and use of the perf tool gave much less unaccountable variations in results compared to other tools such as {\verb|time|}. The machine used was a dual core 2.0 GHz virtual machine running Ubuntu 12.04 with Rust Nightly 23.09.2015 (along with the latest version of the refactoring tool). Timings represent elapsed time, not system time or CPU time.
+Timings were generated for the different crates using the Linux perf tool: {\verb|perf stat -r 10|} Timings were averaged over 10 runs and use of the perf tool gave much less unaccountable variations in results compared to other tools such as {\verb|time|}. The machine used was a dual core 2.0 GHz virtual machine running Ubuntu 12.04 with Rust Nightly 23.09.2015 (along with the latest version of the refactoring tool). The tool was compiled in release mode (not debug) which ensures increased speed, by at least 10 times based on observation. Timings represent elapsed time, not system time or CPU time.
 
-The classes of refactorings measured are: renaming variables (or variable-like constructs), renaming functions (or methods), renaming concrete types, reification and elision. Inline local has been omitted due to lack of sufficient examples in the given crates. In each case, examples were picked with effectively a single usage so that the difference in timings between each of the individual refactorings could be highlighted. 
+The classes of refactorings measured are: renaming variables (or variable-like constructs), renaming functions (or methods), renaming concrete types, reification and elision. Inline local has been omitted due to lack of sufficient examples in the given crates. In each case, examples were picked with effectively a single usage (minimal modification) so that the difference in timings between each of the individual refactorings could be highlighted. 
 
 \begin{figure}[H]
 \begin{center}
@@ -114,7 +114,7 @@ The classes of refactorings measured are: renaming variables (or variable-like c
 \end{figure}
 
 \subsection{Scalability of renames}
-Since the renamings should follow the same general pattern inside the tool, exploring variation with a single type of renaming on a single crate should show the general relationship. In particular, libc was chosen for having a wider variety of occurrence counts specifically with concrete types. Other crates or types of renamings had few examples and only a limited amount of variation.
+Since the renamings should follow the same general pattern inside the tool, exploring variation with a single type of renaming on a single crate should show the general relationship. In particular, `libc' was chosen for having a wider variety of occurrence counts specifically with concrete types. Other crates or types of renamings had few examples and only a limited amount of variation.
 
 \begin{figure}[H]
 \begin{center}
