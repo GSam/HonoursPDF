@@ -35,8 +35,10 @@ Timings were generated for the different crates using the Linux perf tool: {\ver
 
 The classes of refactorings measured are: renaming variables (or variable-like constructs), renaming functions (or methods), renaming concrete types, reification and elision. Inline local has been omitted due to lack of sufficient examples in the given crates. In each case, examples were picked with effectively a single usage (minimal modification) so that the difference in timings between each of the individual refactorings could be highlighted. 
 
-\begin{figure}[H]
-\begin{center}
+\begin{figure}
+\centering
+\begin{minipage}{.5\textwidth}
+  \begin{center}
     \begin{tabular}{ | l | c |}
     \hline
     \textbf{Refactoring} & \textbf{Time (sec)} \\ \hline
@@ -50,9 +52,8 @@ The classes of refactorings measured are: renaming variables (or variable-like c
 
 \caption{Timings for libc}
 \label{Fig:libc}
-\end{figure}
-
-\begin{figure}[H]
+\end{minipage}%
+\begin{minipage}{.5\textwidth}
 \begin{center}
     \begin{tabular}{ | l | c |}
     \hline
@@ -67,10 +68,13 @@ The classes of refactorings measured are: renaming variables (or variable-like c
 
 \caption{Timings for rustc-serialize}
 \label{Fig:rustc-serialize}
+\end{minipage}
 \end{figure}
 
-\begin{figure}[H]
-\begin{center}
+\begin{figure}
+\centering
+\begin{minipage}{.5\textwidth}
+  \begin{center}
     \begin{tabular}{ | l | c |}
     \hline
     \textbf{Refactoring} & \textbf{Time (sec)} \\ \hline
@@ -84,9 +88,8 @@ The classes of refactorings measured are: renaming variables (or variable-like c
 
 \caption{Timings for rand}
 \label{Fig:rand}
-\end{figure}
-
-\begin{figure}[H]
+\end{minipage}%
+\begin{minipage}{.5\textwidth}
 \begin{center}
     \begin{tabular}{ | l | c |}
     \hline
@@ -101,6 +104,7 @@ The classes of refactorings measured are: renaming variables (or variable-like c
 
 \caption{Timings for log}
 \label{Fig:log}
+\end{minipage}
 \end{figure}
 
 \begin{figure}[H]
